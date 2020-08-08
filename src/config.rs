@@ -2,13 +2,13 @@ extern crate confy;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct RootConfig {
     pub discord_config: DiscordConfig,
     pub minecraft_config: MinecraftConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
     pub bot_token: String,
     pub channel_id: String,
@@ -17,13 +17,13 @@ pub struct DiscordConfig {
     pub webhook_config: WebhookConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
     pub enabled: bool,
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MinecraftConfig {
     pub rcon_ip: String,
     pub rcon_port: i32,
