@@ -71,16 +71,10 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        // if msg.content == "!ping" {
-        //     if let Err(e) = msg.channel_id.say(&ctx.http, "Pong!") {
-        //         error!("Error sending a discord message: {:?}", e);
-        //     }
-        // }
-
         let configured_id = match self.cfg.discord_config.channel_id.parse::<u64>() {
             Ok(id) => id,
             Err(e) => {
-                error!("Error parsing Discord channel ID: {:?}", e);
+                error!("Error parsing Discord channel ID: {}", e);
                 return;
             }
         };
@@ -94,13 +88,14 @@ impl EventHandler for Handler {
         let bot = match ctx.http.get_current_user().await {
             Ok(user) => user,
             Err(e) => {
-                error!("Error getting current user from Discord: {:?}", e);
+                error!("Error getting current user from Discord: {}", e);
                 return;
             }
         };
 
         // Ignore messages that are from ourselves
         if msg.author.id == bot.id || msg.webhook_id.is_some() {
+            debug!("Skipping message from ourselves or webhook");
             return;
         }
 
@@ -127,6 +122,7 @@ impl EventHandler for Handler {
                     None => String::new(),
                 };
                 if content.len() > 0 {
+                    debug!("Sending an attachment URL to Minecraft");
                     match self.send_to_minecraft(&name, &content).await {
                         Ok(_) => return,
                         Err(e) => {
@@ -141,7 +137,12 @@ impl EventHandler for Handler {
         // Send a separate message for each line
         let lines = content.split("\n");
         let lines = self.truncate_lines(lines);
-        for line in lines {
+        for (index, line) in lines.iter().enumerate() {
+            debug!(
+                "Sending a chat message to Minecraft: Part {}/{}",
+                index + 1,
+                lines.len()
+            );
             match self.send_to_minecraft(&name, &line).await {
                 Ok(_) => continue,
                 Err(e) => {

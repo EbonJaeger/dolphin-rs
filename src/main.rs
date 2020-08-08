@@ -3,7 +3,10 @@ mod discord;
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate clap;
 
+use clap::{App, Arg};
 use serenity::prelude::*;
 use simplelog::*;
 use std::error::Error;
@@ -13,7 +16,24 @@ type ResultBase = Result<(), Box<dyn Error>>;
 
 #[tokio::main()]
 async fn main() -> ResultBase {
-    TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed).unwrap();
+    let matches = App::new("dolphin")
+        .about("Discord and Minecraft chat bridge (re-)written in Rust")
+        .author("Evan Maddock <maddock.evan@vivaldi.net>")
+        .version(crate_version!())
+        .arg(
+            Arg::with_name("debug")
+                .long("debug")
+                .help("Print extra debug messages to stdout"),
+        )
+        .get_matches();
+
+    let log_level = if matches.is_present("debug") {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
+
+    TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap();
 
     let cfg: config::RootConfig = confy::load("dolphin")?;
     info!("Config loaded successfully");
