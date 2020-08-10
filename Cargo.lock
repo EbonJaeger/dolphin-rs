@@ -295,7 +295,7 @@ dependencies = [
  "confy",
  "directories 3.0.1",
  "log",
- "rconmc",
+ "rcon",
  "serde",
  "serenity",
  "simplelog",
@@ -964,8 +964,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "rconmc"
-version = "0.1.0"
+name = "rcon"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "721e78ee6e40d87ccc742841b22a9eb6ad6cb415d0327bf0501edeae093d5100"
 dependencies = [
  "err-derive",
  "tokio",

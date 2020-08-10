@@ -12,7 +12,7 @@ clap = "^2.33.2"
 confy = "^0.4.0"
 directories = "^3.0.0"
 log = "^0.4.0"
-rconmc = { path = "../rconmc" }
+rcon = "^0.3.0"
 serde = {version = "^1.0", features = ["derive"]}
 serenity = { branch = "await_next", git = "https://github.com/acdenisSK/serenity", default-features = false, features = ["builder", "cache", "client", "gateway", "http", "model", "utils", "rustls_backend"] }
 simplelog = "^0.8.0"

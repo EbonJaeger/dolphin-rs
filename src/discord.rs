@@ -1,5 +1,5 @@
 use super::config;
-use rconmc::{Client, Error};
+use rcon::{Connection, Error};
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Activity, gateway::Ready},
@@ -28,14 +28,17 @@ impl Handler {
             "{}:{}",
             self.cfg.minecraft_config.rcon_ip, self.cfg.minecraft_config.rcon_port
         );
-        let mut client =
-            match Client::dial(addr, self.cfg.minecraft_config.rcon_password.as_str()).await {
-                Ok(client) => client,
-                Err(e) => return Err(e),
-            };
+        let mut conn = match Connection::builder()
+            .enable_minecraft_quirks(true)
+            .connect(addr, self.cfg.minecraft_config.rcon_password.as_str())
+            .await
+        {
+            Ok(conn) => conn,
+            Err(e) => return Err(e),
+        };
 
         // Send the command to Minecraft
-        match client.send_command(command.as_str()).await {
+        match conn.cmd(command.as_str()).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
