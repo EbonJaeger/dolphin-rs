@@ -1,5 +1,6 @@
 mod config;
 mod discord;
+mod minecraft;
 
 #[macro_use]
 extern crate log;
@@ -7,7 +8,8 @@ extern crate log;
 extern crate clap;
 
 use clap::{App, Arg};
-use serenity::prelude::*;
+use discord::DiscordBot;
+use serenity::client::validate_token;
 use simplelog::*;
 use std::error::Error;
 use std::process;
@@ -38,9 +40,11 @@ async fn main() -> ResultBase {
     let cfg: config::RootConfig = confy::load("dolphin")?;
     info!("Config loaded successfully");
 
-    if cfg.discord_config.bot_token == "" {
+    // validate the bot token
+    let bot_token = &cfg.discord_config.bot_token;
+    if validate_token(bot_token).is_err() {
         warn!("+-----------------------------------------------------------------------------------------------+");
-        warn!("| No Discord bot token is configured!                                                           |");
+        warn!("| Discord bot token is either missing or invalid!                                               |");
         warn!("|                                                                                               |");
         warn!("| Create a Discord bot here:                                                                    |");
         warn!("| https://discordapp.com/developers/applications/me                                             |");
@@ -51,22 +55,17 @@ async fn main() -> ResultBase {
         process::exit(0);
     }
 
-    let handler = discord::Handler::new(cfg.clone());
-
-    let mut client = match Client::new(&cfg.discord_config.bot_token)
-        .event_handler(handler)
-        .await
-    {
-        Ok(client) => client,
+    let mut bot = match DiscordBot::new(cfg).await {
+        Ok(bot) => bot,
         Err(e) => {
-            error!("Error starting Discord client: {}", e);
-            process::exit(0);
+            error!("Error creating Discord client: {}", e);
+            process::exit(1);
         }
     };
 
-    if let Err(e) = client.start().await {
+    if let Err(e) = bot.start().await {
         error!("Error starting Discord client: {}", e);
-        process::exit(0);
+        process::exit(1);
     }
 
     Ok(())
