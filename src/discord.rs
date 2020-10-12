@@ -1,5 +1,4 @@
-use crate::config;
-
+use crate::config::RootConfig;
 use crate::minecraft::MessageParser;
 use err_derive::Error;
 use linemux::MuxedLines;
@@ -36,12 +35,12 @@ pub enum Error {
 }
 
 pub struct Handler {
-    cfg: config::RootConfig,
+    cfg: Arc<RootConfig>,
     is_watching: AtomicBool,
 }
 
 impl Handler {
-    pub fn new(cfg: config::RootConfig) -> Self {
+    pub fn new(cfg: Arc<RootConfig>) -> Self {
         Self {
             cfg,
             is_watching: AtomicBool::new(false),
@@ -78,7 +77,7 @@ impl Handler {
         let mut truncated: Vec<&'a str> = Vec::new();
 
         for mut line in lines {
-            while line.len() > 0 {
+            while !line.is_empty() {
                 // Push 100 characters to our Vector if the line is longer
                 // than 100 characters. If the line is less than that, push
                 // the entire line.
@@ -141,20 +140,18 @@ impl EventHandler for Handler {
         let content = msg.content;
 
         // Check if the message just consists of an attachment
-        if msg.attachments.len() > 0 {
-            if content.is_empty() {
-                // Get the URL to the first attachment
-                let content = match msg.attachments.get(0) {
-                    Some(attachment) => attachment.clone().url,
-                    None => String::new(),
-                };
-                if !content.is_empty() {
-                    debug!("Sending an attachment URL to Minecraft");
-                    if let Err(e) = self.send_to_minecraft(&name, &content).await {
-                        error!("Error sending a chat message to Minecraft: {}", e);
-                    }
-                    return;
+        if !msg.attachments.is_empty() && content.is_empty() {
+            // Get the URL to the first attachment
+            let content = match msg.attachments.get(0) {
+                Some(attachment) => attachment.clone().url,
+                None => String::new(),
+            };
+            if !content.is_empty() {
+                debug!("Sending an attachment URL to Minecraft");
+                if let Err(e) = self.send_to_minecraft(&name, &content).await {
+                    error!("Error sending a chat message to Minecraft: {}", e);
                 }
+                return;
             }
         }
 
@@ -188,8 +185,10 @@ impl EventHandler for Handler {
     ///
     async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
         let ctx = Arc::new(ctx);
-        let channel_id = self.cfg.discord_config.channel_id.clone();
-        let log_path = self.cfg.minecraft_config.log_file_path.clone();
+        let cfg = Arc::clone(&self.cfg);
+
+        let channel_id = cfg.discord_config.channel_id;
+        let log_path = &cfg.minecraft_config.log_file_path;
         info!("Using log file at '{}'", log_path);
 
         // Only do stuff if we're not already running

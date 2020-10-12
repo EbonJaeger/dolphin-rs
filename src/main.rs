@@ -11,7 +11,7 @@ use clap::{App, Arg};
 use discord::Handler;
 use serenity::{client::validate_token, prelude::*};
 use simplelog::*;
-use std::{error::Error, process};
+use std::{error::Error, process, sync::Arc};
 
 type ResultBase = Result<(), Box<dyn Error>>;
 
@@ -38,11 +38,12 @@ async fn main() -> ResultBase {
 
     let cfg: config::RootConfig =
         confy::load("dolphin").expect("Unable to load the configuration file");
+    let cfg_arc = Arc::new(cfg);
     info!("Config loaded successfully");
 
     // validate the bot token
-    let bot_token = &cfg.discord_config.bot_token;
-    if validate_token(bot_token).is_err() {
+    let bot_token = cfg_arc.discord_config.bot_token.clone();
+    if validate_token(bot_token.clone()).is_err() {
         warn!("+-----------------------------------------------------------------------------------------------+");
         warn!("| Discord bot token is either missing or invalid!                                               |");
         warn!("|                                                                                               |");
@@ -55,10 +56,10 @@ async fn main() -> ResultBase {
         process::exit(0);
     }
 
-    let handler = Handler::new(cfg.clone());
+    let handler = Handler::new(Arc::clone(&cfg_arc));
 
     // Create the Discord client
-    let mut client = Client::new(&cfg.discord_config.bot_token)
+    let mut client = Client::new(bot_token.clone())
         .event_handler(handler)
         .await
         .expect("Error creating Discord client");

@@ -67,7 +67,7 @@ impl MessageParser {
         }
 
         // Check if the line is a chat message
-        if line.starts_with("<") {
+        if line.starts_with('<') {
             self.parse_chat_line(line)
         } else if line.contains("joined the game") || line.contains("left the game") {
             // Join/leave message
@@ -79,7 +79,7 @@ impl MessageParser {
             // Player Advancement message
             Some(MinecraftMessage {
                 name: String::new(),
-                message: String::from(format!(":partying_face: {}", line)),
+                message: format!(":partying_face: {}", line),
             })
         } else if line.starts_with("Done (") {
             // Server started message
@@ -101,7 +101,7 @@ impl MessageParser {
                 {
                     return Some(MinecraftMessage {
                         name: String::new(),
-                        message: String::from(format!(":skull: {}", line)),
+                        message: format!(":skull: {}", line),
                     });
                 }
             }
@@ -120,7 +120,7 @@ impl MessageParser {
 
     fn parse_chat_line(&self, line: &str) -> Option<MinecraftMessage> {
         // Split the message into parts
-        let parts = line.splitn(2, " ");
+        let parts = line.splitn(2, ' ');
         let parts = parts.collect::<Vec<&str>>();
 
         // Trim the < and > from the username part of the line
@@ -144,7 +144,7 @@ impl MessageParser {
     /// Returns None if the line doesn't contain an expected prefix.
     fn trim_prefix<'a>(&self, line: &'a str) -> Option<&'a str> {
         // Some server plugins may log abnormal lines
-        if !line.starts_with("[") || line.len() < 11 {
+        if !line.starts_with('[') || line.len() < 11 {
             return None;
         }
 
