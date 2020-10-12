@@ -1,15 +1,27 @@
-use super::config;
-use super::minecraft::{MinecraftMessage, MinecraftWatcher};
+use crate::config;
 
+use crate::minecraft::MessageParser;
 use err_derive::Error;
+use linemux::MuxedLines;
 use rcon::Connection;
 use serenity::{
-    model::{channel::Message, gateway::Activity, gateway::Ready},
+    async_trait,
+    model::{
+        channel::Message,
+        gateway::Activity,
+        gateway::Ready,
+        id::{ChannelId, GuildId},
+    },
     prelude::*,
 };
-use std::str::Split;
-use std::sync::mpsc;
-use std::thread;
+use std::{
+    str::Split,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
+use tokio::stream::StreamExt;
 
 const MAX_LINE_LENGTH: usize = 100;
 
@@ -23,84 +35,17 @@ pub enum Error {
     Rcon(#[error(source)] rcon::Error),
 }
 
-pub struct DiscordBot {
+pub struct Handler {
     cfg: config::RootConfig,
-    client: Client,
-}
-
-impl DiscordBot {
-    /// Create a new Discord bot. This will set up the Discord client and event
-    /// handler, but will not connect to Discord.
-    pub async fn new(cfg: config::RootConfig) -> Result<Self, Error> {
-        let handler = Handler::new(cfg.clone());
-
-        // Create the Discord client
-        let client = match Client::new(&cfg.discord_config.bot_token)
-            .event_handler(handler)
-            .await
-        {
-            Ok(client) => client,
-            Err(e) => return Err(Error::Discord(e)),
-        };
-
-        Ok(Self { cfg, client })
-    }
-
-    pub async fn start(&mut self) -> Result<(), Error> {
-        // Create the Minecraft log tailer
-        let mut minecraft_watcher = match MinecraftWatcher::new(
-            self.cfg.minecraft_config.custom_death_keywords.clone(),
-            self.cfg.minecraft_config.log_file_path.clone(),
-        )
-        .await
-        {
-            Ok(watcher) => watcher,
-            Err(e) => return Err(Error::Io(e)),
-        };
-
-        let (tx, rx) = mpsc::channel();
-
-        // Start tailing the Minecraft log file. This is done in a separate thread
-        // so the Discord client doesn't get blocked.
-        thread::spawn(move || {
-            let tx = tx.clone();
-            // Spawn a new thread from this thread to start tailing the log file
-            // FIXME: This doesn't actually seem to work with the `async move`
-            debug!("Starting log watcher thread");
-            thread::spawn(move || async move {
-                info!("Starting Minecraft log watcher");
-                while let Some(message) = minecraft_watcher.read_line().await {
-                    if let Err(e) = tx.send(message) {
-                        warn!("Error sending a message through the channel: {}", e);
-                    }
-                }
-            });
-
-            // Continuously read from the receiver to get new messages
-            while let Ok(message) = rx.recv() {
-                debug!(
-                    "Received a message from the Minecraft watcher: {}",
-                    message.message
-                );
-            }
-        });
-
-        // Connect to Discord and wait for events
-        if let Err(e) = self.client.start().await {
-            Err(Error::Discord(e))
-        } else {
-            Ok(())
-        }
-    }
-}
-
-struct Handler {
-    cfg: config::RootConfig,
+    is_watching: AtomicBool,
 }
 
 impl Handler {
-    fn new(cfg: config::RootConfig) -> Self {
-        Self { cfg }
+    pub fn new(cfg: config::RootConfig) -> Self {
+        Self {
+            cfg,
+            is_watching: AtomicBool::new(false),
+        }
     }
 
     async fn send_to_minecraft(&self, name: &str, content: &str) -> Result<(), Error> {
@@ -156,16 +101,10 @@ impl Handler {
     }
 }
 
-#[serenity::async_trait]
+#[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        let configured_id = match self.cfg.discord_config.channel_id.parse::<u64>() {
-            Ok(id) => id,
-            Err(e) => {
-                error!("Error parsing Discord channel ID: {}", e);
-                return;
-            }
-        };
+        let configured_id = self.cfg.discord_config.channel_id;
 
         // Ignore messages that aren't from the configured channel
         if msg.channel_id.as_u64() != &configured_id {
@@ -203,21 +142,18 @@ impl EventHandler for Handler {
 
         // Check if the message just consists of an attachment
         if msg.attachments.len() > 0 {
-            if content.len() == 0 {
+            if content.is_empty() {
                 // Get the URL to the first attachment
                 let content = match msg.attachments.get(0) {
                     Some(attachment) => attachment.clone().url,
                     None => String::new(),
                 };
-                if content.len() > 0 {
+                if !content.is_empty() {
                     debug!("Sending an attachment URL to Minecraft");
-                    match self.send_to_minecraft(&name, &content).await {
-                        Ok(_) => return,
-                        Err(e) => {
-                            error!("Error sending a chat message to Minecraft: {}", e);
-                            return;
-                        }
-                    };
+                    if let Err(e) = self.send_to_minecraft(&name, &content).await {
+                        error!("Error sending a chat message to Minecraft: {}", e);
+                    }
+                    return;
                 }
             }
         }
@@ -231,12 +167,8 @@ impl EventHandler for Handler {
                 index + 1,
                 lines.len()
             );
-            match self.send_to_minecraft(&name, &line).await {
-                Ok(_) => continue,
-                Err(e) => {
-                    error!("Error sending a chat message to Minecraft: {}", e);
-                    continue;
-                }
+            if let Err(e) = self.send_to_minecraft(&name, &line).await {
+                error!("Error sending a chat message to Minecraft: {}", e);
             }
         }
     }
@@ -245,5 +177,77 @@ impl EventHandler for Handler {
         info!("Connected to Discord");
         ctx.set_activity(Activity::playing("Type !help for command list"))
             .await;
+    }
+
+    ///
+    /// Use this function to set up and start our Minecraft log watcher.
+    ///
+    /// We use `cache_ready` instead of just `ready` because this will
+    /// involve using things in the cache, so best wait for it to be ready
+    /// with this function.
+    ///
+    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
+        let ctx = Arc::new(ctx);
+        let channel_id = self.cfg.discord_config.channel_id.clone();
+        let log_path = self.cfg.minecraft_config.log_file_path.clone();
+        info!("Using log file at '{}'", log_path);
+
+        // Only do stuff if we're not already running
+        if !self.is_watching.load(Ordering::Relaxed) {
+            let ctx_cloned = Arc::clone(&ctx);
+            let parser = MessageParser::new();
+
+            // Create our log watcher
+            let mut log_watcher = MuxedLines::new().unwrap();
+            log_watcher
+                .add_file(&log_path)
+                .await
+                .expect("Unable to add the Minecraft log file to tail");
+
+            // Spawn a task to continuously tail the log file
+            tokio::spawn(async move {
+                info!("Started watching the Minecraft log file");
+                watch_log_file(ctx_cloned, channel_id, &mut log_watcher, parser).await;
+            });
+        }
+
+        self.is_watching.swap(true, Ordering::Relaxed);
+    }
+}
+
+///
+/// Watches the Minecraft log file and waits for new lines to be
+/// received. When a line is received, it will be parsed and sent
+/// to Discord if it's a type of message that we want to broadcast.
+///
+async fn watch_log_file(
+    ctx: Arc<Context>,
+    channel_id: u64,
+    log_watcher: &mut MuxedLines,
+    parser: MessageParser,
+) {
+    // Wait for the next line
+    while let Some(Ok(line)) = log_watcher.next().await {
+        // Turn it into our message struct if it matches something
+        // we care about.
+        let message = match parser.parse_line(line.line()) {
+            Some(message) => message,
+            None => continue,
+        };
+
+        // Get the correct name to use
+        let name = if !message.name.is_empty() {
+            message.name
+        } else {
+            ctx.http.get_current_user().await.unwrap().name
+        };
+
+        // Send the message to the channel
+        if let Err(e) = ChannelId(channel_id)
+            .say(&ctx, format!("**{}**: {}", name, message.message))
+            .await
+        {
+            error!("Error sending a message to Discord: {:?}", e);
+        }
     }
 }

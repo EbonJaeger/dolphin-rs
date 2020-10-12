@@ -11,7 +11,7 @@ pub struct RootConfig {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
     pub bot_token: String,
-    pub channel_id: String,
+    pub channel_id: u64,
     pub allow_mentions: bool,
     pub use_member_nicks: bool,
     pub webhook_config: WebhookConfig,
@@ -38,7 +38,7 @@ impl Default for RootConfig {
         RootConfig {
             discord_config: DiscordConfig {
                 bot_token: String::new(),
-                channel_id: String::new(),
+                channel_id: 0,
                 allow_mentions: true,
                 use_member_nicks: false,
                 webhook_config: WebhookConfig {

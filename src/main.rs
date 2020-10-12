@@ -8,11 +8,10 @@ extern crate log;
 extern crate clap;
 
 use clap::{App, Arg};
-use discord::DiscordBot;
-use serenity::client::validate_token;
+use discord::Handler;
+use serenity::{client::validate_token, prelude::*};
 use simplelog::*;
-use std::error::Error;
-use std::process;
+use std::{error::Error, process};
 
 type ResultBase = Result<(), Box<dyn Error>>;
 
@@ -37,7 +36,8 @@ async fn main() -> ResultBase {
 
     TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap();
 
-    let cfg: config::RootConfig = confy::load("dolphin")?;
+    let cfg: config::RootConfig =
+        confy::load("dolphin").expect("Unable to load the configuration file");
     info!("Config loaded successfully");
 
     // validate the bot token
@@ -55,17 +55,18 @@ async fn main() -> ResultBase {
         process::exit(0);
     }
 
-    let mut bot = match DiscordBot::new(cfg).await {
-        Ok(bot) => bot,
-        Err(e) => {
-            error!("Error creating Discord client: {}", e);
-            process::exit(1);
-        }
-    };
+    let handler = Handler::new(cfg.clone());
 
-    if let Err(e) = bot.start().await {
-        error!("Error starting Discord client: {}", e);
-        process::exit(1);
+    // Create the Discord client
+    let mut client = Client::new(&cfg.discord_config.bot_token)
+        .event_handler(handler)
+        .await
+        .expect("Error creating Discord client");
+
+    // Connect to Discord and wait for events
+    info!("Starting Discord client");
+    if let Err(e) = client.start().await {
+        eprintln!("Discord client error: {:?}", e);
     }
 
     Ok(())

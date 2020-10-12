@@ -1,24 +1,12 @@
-use linemux::MuxedLines;
-use std::io::Error;
-use tokio::stream::StreamExt;
-
-pub struct MinecraftWatcher {
+#[derive(Clone)]
+pub struct MessageParser {
     death_keywords: Vec<String>,
-    line_watcher: MuxedLines,
 }
 
-impl MinecraftWatcher {
-    /// Create a new MinecraftWatcher with the location of the log file to
-    /// continuously tail for messages.
-    pub async fn new(
-        mut custom_death_keywords: Vec<String>,
-        log_location: String,
-    ) -> Result<Self, Error> {
-        let mut line_watcher = MuxedLines::new()?;
-        line_watcher.add_file(&log_location).await?;
-        debug!("Added log file to tail: {}", &log_location);
-
-        let mut death_keywords = vec![
+impl MessageParser {
+    /// Create a new MessageParser to parse Minecraft log lines.
+    pub fn new() -> Self {
+        let death_keywords = vec![
             String::from(" shot"),
             String::from(" pricked"),
             String::from(" walked into a cactus"),
@@ -57,42 +45,15 @@ impl MinecraftWatcher {
             String::from(" slain"),
         ];
 
-        death_keywords.append(&mut custom_death_keywords);
-
-        Ok(Self {
-            death_keywords,
-            line_watcher,
-        })
+        Self { death_keywords }
     }
 
-    pub async fn read_line(&mut self) -> Option<MinecraftMessage> {
-        let line_watcher = &mut self.line_watcher;
-        // Read the next line from the log
-        let line = match line_watcher.next().await {
-            Some(line) => line,
-            None => return None,
-        };
-
-        // Unbox the line Result into a Line
-        let line = match line {
-            Ok(line) => line,
-            Err(e) => {
-                warn!("Error reading a line from the Minecraft log: {}", e);
-                return None;
-            }
-        };
-
-        debug!("Received a line from Minecraft");
-
-        // Shadow the variable with the contents of the line
-        let line = line.line();
-
-        // Parse the line and return a MinecraftMessage if it matches
-        // something we're looking for
-        self.parse_line(line)
-    }
-
-    fn parse_line(&self, line: &str) -> Option<MinecraftMessage> {
+    ///
+    /// Parse a line from a log file. If it is a message that we
+    /// want to send over to Discord, it will return a `MinecraftMessage`.
+    /// If the line does not match anything we want, `None` will be returned.
+    ///
+    pub fn parse_line(&self, line: &str) -> Option<MinecraftMessage> {
         let line = match self.trim_prefix(line) {
             Some(line) => line,
             None => return None,
@@ -135,7 +96,7 @@ impl MinecraftWatcher {
         } else {
             // Check if the line is a player death message
             for word in &self.death_keywords {
-                if line.contains(word)
+                if line.contains(word.as_str())
                     && line != "Found that the dragon has been killed in this world already."
                 {
                     return Some(MinecraftMessage {
