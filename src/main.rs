@@ -6,6 +6,8 @@ mod minecraft;
 extern crate log;
 #[macro_use]
 extern crate clap;
+#[macro_use]
+extern crate lazy_static;
 
 use clap::{App, Arg};
 use discord::Handler;

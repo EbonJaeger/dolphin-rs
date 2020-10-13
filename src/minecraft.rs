@@ -74,24 +74,28 @@ impl MessageParser {
             Some(MinecraftMessage {
                 name: String::new(),
                 message: String::from(line),
+                source: Source::Server,
             })
         } else if self.is_advancement(line) {
             // Player Advancement message
             Some(MinecraftMessage {
                 name: String::new(),
                 message: format!(":partying_face: {}", line),
+                source: Source::Server,
             })
         } else if line.starts_with("Done (") {
             // Server started message
             Some(MinecraftMessage {
                 name: String::new(),
                 message: String::from(":white_check_mark: Server has started"),
+                source: Source::Server,
             })
         } else if line.starts_with("Stopping the server") {
             // Server stopping message
             Some(MinecraftMessage {
                 name: String::new(),
                 message: String::from(":x: Server is shutting down"),
+                source: Source::Server,
             })
         } else {
             // Check if the line is a player death message
@@ -102,6 +106,7 @@ impl MessageParser {
                     return Some(MinecraftMessage {
                         name: String::new(),
                         message: format!(":skull: {}", line),
+                        source: Source::Server,
                     });
                 }
             }
@@ -124,7 +129,7 @@ impl MessageParser {
         let parts = parts.collect::<Vec<&str>>();
 
         // Trim the < and > from the username part of the line
-        let name = match parts[0].get(1..parts[0].len() - 2) {
+        let name = match parts[0].get(1..parts[0].len() - 1) {
             Some(username) => username,
             None => return None,
         };
@@ -134,6 +139,7 @@ impl MessageParser {
         Some(MinecraftMessage {
             name: String::from(name),
             message: String::from(message),
+            source: Source::Player,
         })
     }
 
@@ -165,8 +171,15 @@ impl MessageParser {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+pub enum Source {
+    Player,
+    Server,
+}
+
+#[derive(Clone, Debug)]
 pub struct MinecraftMessage {
     pub name: String,
     pub message: String,
+    pub source: Source,
 }

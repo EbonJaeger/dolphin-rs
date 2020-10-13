@@ -11,9 +11,11 @@ clap = "^2.33.2"
 confy = "^0.4.0"
 directories = "^3.0.0"
 err-derive = "^0.2.4"
+lazy_static = "^1.4.0"
 linemux = "^0.1.1"
 log = "^0.4.0"
 rcon = "^0.3.0"
+regex = "^1.4.0"
 serde = {version = "^1.0", features = ["derive"]}
 serenity = { version = "0.9.0-rc.2", default-features = false, features = ["builder", "cache", "client", "gateway", "http", "model", "utils", "rustls_backend"] }
 simplelog = "^0.8.0"
