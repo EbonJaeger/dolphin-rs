@@ -73,28 +73,28 @@ impl MessageParser {
             // Join/leave message
             Some(MinecraftMessage {
                 name: String::new(),
-                message: String::from(line),
+                content: String::from(line),
                 source: Source::Server,
             })
         } else if self.is_advancement(line) {
             // Player Advancement message
             Some(MinecraftMessage {
                 name: String::new(),
-                message: format!(":partying_face: {}", line),
+                content: format!(":partying_face: {}", line),
                 source: Source::Server,
             })
         } else if line.starts_with("Done (") {
             // Server started message
             Some(MinecraftMessage {
                 name: String::new(),
-                message: String::from(":white_check_mark: Server has started"),
+                content: String::from(":white_check_mark: Server has started"),
                 source: Source::Server,
             })
         } else if line.starts_with("Stopping the server") {
             // Server stopping message
             Some(MinecraftMessage {
                 name: String::new(),
-                message: String::from(":x: Server is shutting down"),
+                content: String::from(":x: Server is shutting down"),
                 source: Source::Server,
             })
         } else {
@@ -105,7 +105,7 @@ impl MessageParser {
                 {
                     return Some(MinecraftMessage {
                         name: String::new(),
-                        message: format!(":skull: {}", line),
+                        content: format!(":skull: {}", line),
                         source: Source::Server,
                     });
                 }
@@ -138,7 +138,7 @@ impl MessageParser {
 
         Some(MinecraftMessage {
             name: String::from(name),
-            message: String::from(message),
+            content: String::from(message),
             source: Source::Player,
         })
     }
@@ -180,6 +180,6 @@ pub enum Source {
 #[derive(Clone, Debug)]
 pub struct MinecraftMessage {
     pub name: String,
-    pub message: String,
+    pub content: String,
     pub source: Source,
 }

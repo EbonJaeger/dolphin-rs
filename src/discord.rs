@@ -17,7 +17,7 @@ use serenity::{
 use std::{
     str::Split,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
 };
@@ -37,6 +37,7 @@ pub enum Error {
 
 pub struct Handler {
     cfg: Arc<RootConfig>,
+    guild_id: AtomicU64,
     is_watching: AtomicBool,
 }
 
@@ -44,6 +45,7 @@ impl Handler {
     pub fn new(cfg: Arc<RootConfig>) -> Self {
         Self {
             cfg,
+            guild_id: AtomicU64::new(0),
             is_watching: AtomicBool::new(false),
         }
     }
@@ -112,13 +114,7 @@ impl EventHandler for Handler {
         }
 
         // Get our bot user
-        let bot = match ctx.http.get_current_user().await {
-            Ok(user) => user,
-            Err(e) => {
-                error!("Error getting current user from Discord: {}", e);
-                return;
-            }
-        };
+        let bot = ctx.cache.current_user().await;
 
         // Ignore messages that are from ourselves
         if msg.author.id == bot.id || msg.webhook_id.is_some() {
@@ -184,9 +180,16 @@ impl EventHandler for Handler {
     /// involve using things in the cache, so best wait for it to be ready
     /// with this function.
     ///
-    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
+    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         let ctx = Arc::new(ctx);
         let cfg = Arc::clone(&self.cfg);
+
+        if self.guild_id.load(Ordering::Relaxed) == 0 {
+            self.guild_id.store(guilds[0].0, Ordering::Relaxed);
+        }
+
+        let guild_id = self.guild_id.load(Ordering::Relaxed);
+        let guild_id = GuildId(guild_id);
 
         let log_path = &cfg.minecraft_config.log_file_path;
         info!("Using log file at '{}'", log_path);
@@ -206,7 +209,14 @@ impl EventHandler for Handler {
             // Spawn a task to continuously tail the log file
             tokio::spawn(async move {
                 info!("Started watching the Minecraft log file");
-                watch_log_file(ctx_cloned, Arc::clone(&cfg), &mut log_watcher, parser).await;
+                watch_log_file(
+                    ctx_cloned,
+                    Arc::clone(&cfg),
+                    guild_id,
+                    &mut log_watcher,
+                    parser,
+                )
+                .await;
             });
         }
 
@@ -222,6 +232,7 @@ impl EventHandler for Handler {
 async fn watch_log_file(
     ctx: Arc<Context>,
     cfg: Arc<RootConfig>,
+    guild_id: GuildId,
     log_watcher: &mut MuxedLines,
     parser: MessageParser,
 ) {
@@ -237,16 +248,25 @@ async fn watch_log_file(
         // Get the correct name to use
         let name = match message.source {
             Source::Player => message.name.clone(),
-            Source::Server => ctx.http.get_current_user().await.unwrap().name,
+            Source::Server => ctx.cache.current_user().await.name,
+        };
+
+        let mut content = message.content.clone();
+        if cfg.discord_config.allow_mentions {
+            content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
+        }
+
+        let message = MinecraftMessage {
+            name: name.clone(),
+            content,
+            source: message.source,
         };
 
         // Check if we should use a webhook to post the message
         if cfg.discord_config.webhook_config.enabled {
-            let msg = message.clone();
-            let name = name.clone();
             let url = &cfg.discord_config.webhook_config.url;
 
-            if let Err(e) = post_to_webhook(Arc::clone(&ctx), msg, &name, url).await {
+            if let Err(e) = post_to_webhook(Arc::clone(&ctx), message, url).await {
                 error!("Error posting to webhook: {}", e);
             }
             continue;
@@ -254,7 +274,7 @@ async fn watch_log_file(
 
         // Send the message to the channel
         if let Err(e) = ChannelId(cfg.discord_config.channel_id)
-            .say(&ctx, format!("**{}**: {}", name, message.message))
+            .say(&ctx, format!("**{}**: {}", message.name, message.content))
             .await
         {
             error!("Error sending a message to Discord: {:?}", e);
@@ -263,12 +283,51 @@ async fn watch_log_file(
 }
 
 ///
+/// Looks for instances of user mentions in a message and attempts
+/// to replace that text with an actual Discord @mention.
+///
+async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String) -> String {
+    let mut cloned = message.clone();
+
+    // Get the members from the Guild
+    let members = match ctx.cache.guild_field(guild_id, |g| g.members.clone()).await {
+        Some(members) => members,
+        None => return cloned,
+    };
+
+    /*
+     * Split the message on whitespace, and filter out any words that don't
+     * start with an '@' symbol. For each word that does, look to see if it
+     * matches any of the member names, and replace the original word with
+     * their @mention.
+     */
+    message
+        .split_whitespace()
+        .filter(|w| w.starts_with('@'))
+        .for_each(|m| {
+            let name = &m[1..];
+            for member in members.values() {
+                if member
+                    .nick
+                    .as_ref()
+                    .unwrap_or(&member.user.name)
+                    .eq_ignore_ascii_case(name)
+                {
+                    cloned = cloned.replace(m, format!("{}", member.mention()).as_str());
+                    break;
+                }
+            }
+        });
+
+    cloned
+}
+
+///
 /// Post a message to the configured Discord webhook.
 ///
 async fn post_to_webhook(
     ctx: Arc<Context>,
     message: MinecraftMessage,
-    name: &str,
     url: &str,
 ) -> Result<(), String> {
     // Split the url into the webhook id an token
@@ -286,21 +345,15 @@ async fn post_to_webhook(
     // Get the avatar URL
     let avatar_url = match message.source {
         Source::Player => format!("https://minotar.net/helm/{}/256.png", message.name.clone()),
-        Source::Server => ctx
-            .http
-            .get_current_user()
-            .await
-            .unwrap()
-            .avatar_url()
-            .unwrap(),
+        Source::Server => ctx.cache.current_user().await.avatar_url().unwrap(),
     };
 
     // Post to the webhook
     match webhook
         .execute(&ctx.http, false, |w| {
             w.avatar_url(avatar_url)
-                .username(name)
-                .content(message.message)
+                .username(message.name)
+                .content(message.content)
         })
         .await
     {
