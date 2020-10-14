@@ -1,9 +1,11 @@
-use crate::ConfigContainer;
+use crate::{commands::embed::*, ConfigContainer};
 use rcon::*;
-use serenity::framework::standard::{macros::command, Args, CommandResult};
-use serenity::model::prelude::*;
-use serenity::prelude::*;
-use serenity::utils::Colour;
+use serenity::{
+    framework::standard::{macros::command, Args, CommandResult},
+    model::prelude::*,
+    prelude::*,
+    utils::Colour,
+};
 use tokio::time::{delay_for, Duration};
 
 #[command]
@@ -25,11 +27,12 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
             Ok(conn) => conn,
             Err(e) => {
                 error!("Error performing list command: {:?}", e);
-                msg.reply(ctx, "Error while performing command!").await?;
+                send_error_embed(ctx, msg, "Error performing list command!", e).await?;
                 return Ok(());
             }
         };
 
+        // Send the `list` command to the Minecraft server
         let resp = match conn.cmd("minecraft:list").await {
             Ok(resp) => {
                 if resp.starts_with("Unknown or incomplete command") {
@@ -40,14 +43,14 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
             }
             Err(e) => {
                 error!("Error performing list command: {:?}", e);
-                msg.reply(ctx, "Error while performing command!").await?;
+                send_error_embed(ctx, msg, "Error performing list command!", e).await?;
                 return Ok(());
             }
         };
 
         send_reply(ctx, msg, resp).await?;
     } else {
-        msg.reply(ctx, "Unable to read the configuration").await?;
+        send_error_embed(ctx, msg, "Error performing list command!", "unknown error").await?;
     }
 
     Ok(())
@@ -60,8 +63,7 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> CommandResult
     let player_list = parts.next().unwrap();
 
     if let Some((online, max)) = get_player_counts(count_line) {
-        info!("Made it here! {}/{}", online, max);
-        // Create the embed
+        // Create and send the embed
         let reply = match msg
             .channel_id
             .send_message(&ctx.http, |m| {
