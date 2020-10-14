@@ -126,10 +126,7 @@ impl EventHandler for Handler {
 
         // Get the sender's name to send to Minecraft
         let name = if self.cfg.discord_config.use_member_nicks {
-            match msg.author_nick(ctx).await {
-                Some(nick) => nick,
-                None => msg.author.name,
-            }
+            msg.author_nick(ctx).await.unwrap_or(msg.author.name)
         } else {
             msg.author.name
         };
@@ -269,15 +266,19 @@ async fn watch_log_file(
             if let Err(e) = post_to_webhook(Arc::clone(&ctx), message, url).await {
                 error!("Error posting to webhook: {}", e);
             }
-            continue;
-        }
+        } else {
+            // Send the message to the channel
+            let final_msg = match message.source {
+                Source::Player => format!("**{}**: {}", message.name, message.content),
+                Source::Server => message.content,
+            };
 
-        // Send the message to the channel
-        if let Err(e) = ChannelId(cfg.discord_config.channel_id)
-            .say(&ctx, format!("**{}**: {}", message.name, message.content))
-            .await
-        {
-            error!("Error sending a message to Discord: {:?}", e);
+            if let Err(e) = ChannelId(cfg.discord_config.channel_id)
+                .say(&ctx, final_msg)
+                .await
+            {
+                error!("Error sending a message to Discord: {:?}", e);
+            }
         }
     }
 }
