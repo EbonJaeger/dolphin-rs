@@ -315,7 +315,7 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String)
                     .eq_ignore_ascii_case(name)
                     || member.user.name.eq_ignore_ascii_case(name)
                 {
-                    cloned = cloned.replace(m, format!("{}", member.mention()).as_str());
+                    cloned = cloned.replace(m, &member.mention());
                     break;
                 }
             }
