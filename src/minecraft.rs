@@ -5,8 +5,8 @@ pub struct MessageParser {
 
 impl MessageParser {
     /// Create a new MessageParser to parse Minecraft log lines.
-    pub fn new() -> Self {
-        let death_keywords = vec![
+    pub fn new(mut custom_keywords: Vec<String>) -> Self {
+        let mut death_keywords = vec![
             String::from(" shot"),
             String::from(" pricked"),
             String::from(" walked into a cactus"),
@@ -45,6 +45,8 @@ impl MessageParser {
             String::from(" slain"),
         ];
 
+        death_keywords.append(&mut custom_keywords);
+
         Self { death_keywords }
     }
 
@@ -54,12 +56,10 @@ impl MessageParser {
     /// If the line does not match anything we want, `None` will be returned.
     ///
     pub fn parse_line(&self, line: &str) -> Option<MinecraftMessage> {
-        let line = match self.trim_prefix(line) {
-            Some(line) => line,
+        let line = match trim_prefix(line) {
+            Some(line) => line.trim(),
             None => return None,
         };
-
-        let line = line.trim();
 
         // Ignore villager death messages
         if line.starts_with("Villager") && line.contains("died, message:") {
@@ -68,7 +68,7 @@ impl MessageParser {
 
         // Check if the line is a chat message
         if line.starts_with('<') {
-            self.parse_chat_line(line)
+            parse_chat_line(line)
         } else if line.contains("joined the game") || line.contains("left the game") {
             // Join/leave message
             Some(MinecraftMessage {
@@ -76,7 +76,7 @@ impl MessageParser {
                 content: String::from(line),
                 source: Source::Server,
             })
-        } else if self.is_advancement(line) {
+        } else if is_advancement(line) {
             // Player Advancement message
             Some(MinecraftMessage {
                 name: String::new(),
@@ -114,60 +114,59 @@ impl MessageParser {
             None
         }
     }
+}
 
-    /// Check if the line is the server logging a player earning
-    /// an Advancement.
-    fn is_advancement(&self, line: &str) -> bool {
-        line.contains("has made the advancement")
-            || line.contains("has completed the challenge")
-            || line.contains("has reached the goal")
+/// Check if the line is the server logging a player earning
+/// an Advancement.
+fn is_advancement(line: &str) -> bool {
+    line.contains("has made the advancement")
+        || line.contains("has completed the challenge")
+        || line.contains("has reached the goal")
+}
+
+fn parse_chat_line(line: &str) -> Option<MinecraftMessage> {
+    // Split the message into parts
+    let parts = line.splitn(2, ' ').collect::<Vec<&str>>();
+
+    // Trim the < and > from the username part of the line
+    let name = match parts[0].get(1..parts[0].len() - 1) {
+        Some(username) => username,
+        None => return None,
+    };
+
+    let message = parts[1];
+
+    Some(MinecraftMessage {
+        name: String::from(name),
+        content: String::from(message),
+        source: Source::Player,
+    })
+}
+
+/// Trims the timestamp and thread prefix from incoming messages
+/// from the Minecraft server. We have to check for multiple prefixes because
+/// different server softwares change logging output slightly.
+///
+/// Returns None if the line doesn't contain an expected prefix.
+fn trim_prefix(line: &str) -> Option<&str> {
+    // Some server plugins may log abnormal lines
+    if !line.starts_with('[') || line.len() < 11 {
+        return None;
     }
 
-    fn parse_chat_line(&self, line: &str) -> Option<MinecraftMessage> {
-        // Split the message into parts
-        let parts = line.splitn(2, ' ');
-        let parts = parts.collect::<Vec<&str>>();
+    // Trim the timestamp prefix
+    let trimmed = match line.get(11..) {
+        Some(line) => line,
+        None => return None,
+    };
 
-        // Trim the < and > from the username part of the line
-        let name = match parts[0].get(1..parts[0].len() - 1) {
-            Some(username) => username,
-            None => return None,
-        };
-
-        let message = parts[1];
-
-        Some(MinecraftMessage {
-            name: String::from(name),
-            content: String::from(message),
-            source: Source::Player,
-        })
-    }
-
-    /// Trims the timestamp and thread prefix from incoming messages
-    /// from the Minecraft server. We have to check for multiple prefixes because
-    /// different server softwares change logging output slightly.
-    ///
-    /// Returns None if the line doesn't contain an expected prefix.
-    fn trim_prefix<'a>(&self, line: &'a str) -> Option<&'a str> {
-        // Some server plugins may log abnormal lines
-        if !line.starts_with('[') || line.len() < 11 {
-            return None;
-        }
-
-        // Trim the timestamp prefix
-        let trimmed = match line.get(11..) {
-            Some(line) => line,
-            None => return None,
-        };
-
-        // Return the line without the server thread prefix
-        if trimmed.contains("[Server thread/INFO]: ") {
-            trimmed.get(22..)
-        } else if trimmed.contains("[Async Chat Thread") {
-            trimmed.get(31..)
-        } else {
-            None
-        }
+    // Return the line without the server thread prefix
+    if trimmed.contains("[Server thread/INFO]: ") {
+        trimmed.get(22..)
+    } else if trimmed.contains("[Async Chat Thread") {
+        trimmed.get(31..)
+    } else {
+        None
     }
 }
 

@@ -194,7 +194,7 @@ impl EventHandler for Handler {
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
             let ctx_cloned = Arc::clone(&ctx);
-            let parser = MessageParser::new();
+            let parser = MessageParser::new(cfg.minecraft_config.custom_death_keywords.clone());
 
             // Create our log watcher
             let mut log_watcher = MuxedLines::new().unwrap();
