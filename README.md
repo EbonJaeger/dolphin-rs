@@ -79,9 +79,9 @@ There are a few placeholders you can use in the templates to customize your chat
 
 - `%content%`
 - `%mention%`
-- `%num` **Note:** This is only used for attachment messages to show how many attachments there are.
-- `%url` **Note:** This is only used for attachment messages to open the first attachment on click.
-- `%username`
+- `%num%` **Note:** This is only used for attachment messages to show how many attachments there are.
+- `%url%` **Note:** This is only used for attachment messages to open the first attachment on click.
+- `%username%`
 
 ## Usage
 
