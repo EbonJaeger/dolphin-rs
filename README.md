@@ -4,9 +4,15 @@ This is an implementation of my Dolphin Discord/Minecraft bridge in Rust, in ord
 
 ## Building and Running
 
+### Building
+
 You'll need Cargo to build this. If you don't have Cargo installed, you can get it via rustup [here](https://rustup.rs).
 
 To build the release (and optimized) version, run `cargo build --release`. The resulting binary will be `target/release/dolphin-rs`. To build and run `dolphin-rs` all in one go, you can use `cargo run --release`.
+
+### Precompiled
+
+You should be able to just run the attached precompiled binary found on the [releases page](https://github.com/EbonJaeger/dolphin-rs/releases) without anything extra.
 
 ## Setup
 
@@ -34,9 +40,19 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 2. Copy the Webhook URL shown, and paste it in your Dolphin config, and enable using webhooks. Start Dolphin and that's it, you're done! :D
 
-### Tellraw Command Template
+### Minecraft Message Template
 
-You can (to a degree) customize the message format for messages being sent to Minecraft. There are two placeholders that **must** be used: `%username%` and `%content%`, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that. Additionally you can use the following optional placeholders: `%mention%`
+You can (to a degree) customize the message format for messages being sent to Minecraft (via the [tellraw command](https://minecraft.gamepedia.com/Commands/tellraw)). This value should be a JSON array of objects. For a list of various things you can use, see [this wiki page](https://minecraft.gamepedia.com/Raw_JSON_text_format#Java_Edition). If you are unsure about what this does, the default matches Vanilla Minecraft chat output.
+
+Default:
+
+```json
+[{"color": "white", "text": "<%username%> ", "clickEvent":{"action":"suggest_command", "value":"%mention% "}}, %content%]
+```
+
+### Placeholders
+
+There are two placeholders that **must** be used: `%username%` and `%content%`, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that. Additionally you can use the following optional placeholders: `%mention%`
 
 The way this is handled should be improved in the future, but that may lead to less customizability. I'm not sure how I want to handle that just yet.
 
