@@ -34,7 +34,7 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 ### Tellraw Command Template
 
-You can (to a degree) customize the message format for messages being sent to Minecraft. There are two placeholders that you can use: `%username%` and `%content%`. They **must** both be used, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that.
+You can (to a degree) customize the message format for messages being sent to Minecraft. There are two placeholders that **must** be used: `%username%` and `%content%`, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that. Additionally you can use the following optional placeholders: `%mention%`
 
 The way this is handled should be improved in the future, but that may lead to less customizability. I'm not sure how I want to handle that just yet.
 

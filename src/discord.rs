@@ -10,9 +10,9 @@ use serenity::{
     async_trait,
     model::{
         channel::Message,
-        gateway::Activity,
-        gateway::Ready,
+        gateway::{Activity, Ready},
         id::{ChannelId, GuildId},
+        user::User,
     },
     prelude::*,
 };
@@ -53,16 +53,50 @@ impl Handler {
     }
 
     ///
+    /// Create the tellraw command string from the configured template.
+    /// This will insert values into the various supported placeholders,
+    /// returning the final result.
+    ///
+    async fn build_tellraw_command(
+        &self,
+        author: &User,
+        ctx: &Context,
+        content: &str,
+        msg: &Message,
+    ) -> String {
+        let command = format!("tellraw @a {}", self.cfg.minecraft_config.tellraw_template);
+
+        // Get the sender's name to send to Minecraft
+        let name = if self.cfg.discord_config.use_member_nicks {
+            author
+                .nick_in(&ctx.http, msg.guild_id.unwrap())
+                .await
+                .unwrap_or_else(|| author.name.clone())
+        } else {
+            author.name.clone()
+        };
+
+        // Fill in our placeholders
+        let command = command.replace("%username%", &name);
+        let command = command.replace("%mention%", &author.mention());
+        command.replace("%content%", content)
+    }
+
+    ///
     /// Send a tellraw message to the Minecraft server via RCON. Content
     /// should be a valid JSON Object that the game can parse and display.
     ///
     /// If there is an error connecting to RCON or sending the message, the
     /// error will be returned.
     ///
-    async fn send_to_minecraft(&self, name: &str, content: &str) -> Result<(), Error> {
-        let command = format!("tellraw @a {}", self.cfg.minecraft_config.tellraw_template);
-        let command = str::replace(command.as_str(), "%username%", name);
-        let command = str::replace(command.as_str(), "%content%", content);
+    async fn send_to_minecraft(
+        &self,
+        author: &User,
+        ctx: &Context,
+        content: &str,
+        msg: &Message,
+    ) -> Result<(), Error> {
+        let command = self.build_tellraw_command(author, ctx, content, msg).await;
         debug!("{}", command);
 
         // Create RCON connection
@@ -70,6 +104,7 @@ impl Handler {
             "{}:{}",
             self.cfg.minecraft_config.rcon_ip, self.cfg.minecraft_config.rcon_port
         );
+
         let mut conn = match Connection::builder()
             .enable_minecraft_quirks(true)
             .connect(addr, self.cfg.minecraft_config.rcon_password.as_str())
@@ -108,14 +143,7 @@ impl EventHandler for Handler {
 
         debug!("Received a message from Discord");
 
-        // Get the sender's name to send to Minecraft
-        let name = if self.cfg.discord_config.use_member_nicks {
-            msg.author_nick(ctx).await.unwrap_or(msg.author.name)
-        } else {
-            msg.author.name
-        };
-
-        let content = msg.content;
+        let content = msg.content.clone();
 
         // Send a separate message for each line
         let lines = content.split("\n");
@@ -137,7 +165,7 @@ impl EventHandler for Handler {
                 index + 1,
                 lines.len()
             );
-            if let Err(e) = self.send_to_minecraft(&name, &line).await {
+            if let Err(e) = self.send_to_minecraft(&msg.author, &ctx, &line, &msg).await {
                 error!("Error sending a chat message to Minecraft: {}", e);
             }
         }
