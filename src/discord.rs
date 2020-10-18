@@ -1,5 +1,7 @@
 use crate::config::RootConfig;
-use crate::minecraft::{MessageParser, MinecraftMessage, Source};
+use crate::minecraft::{
+    MessageParser, MinecraftMessage, Source, ATTACHMENT_TELLRAW_TEMPLATE, MESSAGE_TELLRAW_TEMPLATE,
+};
 use err_derive::Error;
 use linemux::MuxedLines;
 use rcon::Connection;
@@ -50,10 +52,18 @@ impl Handler {
         }
     }
 
+    ///
+    /// Send a tellraw message to the Minecraft server via RCON. Content
+    /// should be a valid JSON Object that the game can parse and display.
+    ///
+    /// If there is an error connecting to RCON or sending the message, the
+    /// error will be returned.
+    ///
     async fn send_to_minecraft(&self, name: &str, content: &str) -> Result<(), Error> {
         let command = format!("tellraw @a {}", self.cfg.minecraft_config.tellraw_template);
         let command = str::replace(command.as_str(), "%username%", name);
-        let command = str::replace(command.as_str(), "%message%", content);
+        let command = str::replace(command.as_str(), "%content%", content);
+        debug!("{}", command);
 
         // Create RCON connection
         let addr = format!(
@@ -74,32 +84,6 @@ impl Handler {
             Ok(_) => Ok(()),
             Err(e) => Err(Error::Rcon(e)),
         }
-    }
-
-    fn truncate_lines<'a>(&self, lines: Split<'a, &'a str>) -> Vec<&'a str> {
-        let mut truncated: Vec<&'a str> = Vec::new();
-
-        for mut line in lines {
-            while !line.is_empty() {
-                // Push 100 characters to our Vector if the line is longer
-                // than 100 characters. If the line is less than that, push
-                // the entire line.
-                let trunk = match line.get(..MAX_LINE_LENGTH) {
-                    Some(trunk) => trunk,
-                    None => &line,
-                };
-
-                truncated.push(trunk);
-
-                // Shorten the line for the next iteration
-                line = match line.get(MAX_LINE_LENGTH..) {
-                    Some(sub) => sub,
-                    None => "",
-                };
-            }
-        }
-
-        truncated
     }
 }
 
@@ -133,25 +117,20 @@ impl EventHandler for Handler {
 
         let content = msg.content;
 
-        // Check if the message just consists of an attachment
-        if !msg.attachments.is_empty() && content.is_empty() {
-            // Get the URL to the first attachment
-            let content = match msg.attachments.get(0) {
-                Some(attachment) => attachment.clone().url,
-                None => String::new(),
-            };
-            if !content.is_empty() {
-                debug!("Sending an attachment URL to Minecraft");
-                if let Err(e) = self.send_to_minecraft(&name, &content).await {
-                    error!("Error sending a chat message to Minecraft: {}", e);
-                }
-                return;
-            }
-        }
-
         // Send a separate message for each line
         let lines = content.split("\n");
-        let lines = self.truncate_lines(lines);
+        let lines = truncate_lines(lines);
+        let mut lines = apply_line_template(lines);
+
+        // Add attachement message if an attachment is present
+        if !msg.attachments.is_empty() {
+            let line = ATTACHMENT_TELLRAW_TEMPLATE;
+            let line = line.replace("%num%", &msg.attachments.len().to_string());
+            let line = line.replace("%url%", &msg.attachments.first().unwrap().url);
+            lines.push(line);
+        }
+
+        // Send each line to Minecraft
         for (index, line) in lines.iter().enumerate() {
             debug!(
                 "Sending a chat message to Minecraft: Part {}/{}",
@@ -219,6 +198,53 @@ impl EventHandler for Handler {
 
         self.is_watching.swap(true, Ordering::Relaxed);
     }
+}
+
+///
+/// Put each given line into a JSON structure to be passed to the
+/// Minecraft tellraw command.
+///
+fn apply_line_template(lines: Vec<String>) -> Vec<String> {
+    let mut formatted_lines: Vec<String> = Vec::new();
+
+    for line in lines {
+        let formatted = MESSAGE_TELLRAW_TEMPLATE;
+        let formatted = formatted.replace("%text%", line.as_str());
+        formatted_lines.push(formatted);
+    }
+
+    formatted_lines
+}
+
+///
+/// Truncates each line if it is longer than the maximum number of characters,
+/// by default 100. If a line is over the limit, it will be split at that
+/// number of chacacters, and a new line inserted into the line Vector.
+///
+fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
+    let mut truncated: Vec<String> = Vec::new();
+
+    for mut line in lines {
+        while !line.is_empty() {
+            // Push 100 characters to our Vector if the line is longer
+            // than 100 characters. If the line is less than that, push
+            // the entire line.
+            let trunk = match line.get(..MAX_LINE_LENGTH) {
+                Some(trunk) => trunk,
+                None => &line,
+            };
+
+            truncated.push(trunk.to_string());
+
+            // Shorten the line for the next iteration
+            line = match line.get(MAX_LINE_LENGTH..) {
+                Some(sub) => sub,
+                None => "",
+            };
+        }
+    }
+
+    truncated
 }
 
 ///

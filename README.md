@@ -32,6 +32,12 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 2. Copy the Webhook URL shown, and paste it in your Dolphin config, and enable using webhooks. Start Dolphin and that's it, you're done! :D
 
+### Tellraw Command Template
+
+You can (to a degree) customize the message format for messages being sent to Minecraft. There are two placeholders that you can use: `%username%` and `%content%`. They **must** both be used, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that.
+
+The way this is handled should be improved in the future, but that may lead to less customizability. I'm not sure how I want to handle that just yet.
+
 ## Usage
 
 ```

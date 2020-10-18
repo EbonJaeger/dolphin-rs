@@ -1,3 +1,6 @@
+pub const MESSAGE_TELLRAW_TEMPLATE: &str = "{\"color\":\"white\", \"text\":\"%text%\"}";
+pub const ATTACHMENT_TELLRAW_TEMPLATE: &str = "{\"color\":\"gray\",\"text\":\"[%num% attachment(s) sent]\", \"clickEvent\":{\"action\":\"open_url\",\"value\":\"%url%\"},\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to open\"}}}";
+
 #[derive(Clone)]
 pub struct MessageParser {
     death_keywords: Vec<String>,
