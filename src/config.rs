@@ -51,7 +51,7 @@ impl Default for RootConfig {
                 rcon_port: 25575,
                 rcon_password: String::new(),
                 tellraw_template: String::from(
-                    "[{\"color\": \"white\", \"text\": \"<%username%> \"}, %content%]",
+                    "[{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"@%username% \"}}, %content%]",
                 ),
                 custom_death_keywords: Vec::new(),
                 log_file_path: String::new(),
