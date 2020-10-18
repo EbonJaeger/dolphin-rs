@@ -1,7 +1,5 @@
 use crate::config::RootConfig;
-use crate::minecraft::{
-    MessageParser, MinecraftMessage, Source, ATTACHMENT_TELLRAW_TEMPLATE, MESSAGE_TELLRAW_TEMPLATE,
-};
+use crate::minecraft::{MessageParser, MinecraftMessage, Source};
 use err_derive::Error;
 use linemux::MuxedLines;
 use rcon::Connection;
@@ -53,6 +51,22 @@ impl Handler {
     }
 
     ///
+    /// Put each given line into a JSON structure to be passed to the
+    /// Minecraft tellraw command.
+    ///
+    fn apply_line_template(&self, lines: Vec<String>) -> Vec<String> {
+        let mut formatted_lines: Vec<String> = Vec::new();
+
+        for line in lines {
+            let formatted = self.cfg.minecraft_config.templates.message_template.clone();
+            let formatted = formatted.replace("%content%", line.as_str());
+            formatted_lines.push(formatted);
+        }
+
+        formatted_lines
+    }
+
+    ///
     /// Create the tellraw command string from the configured template.
     /// This will insert values into the various supported placeholders,
     /// returning the final result.
@@ -64,7 +78,10 @@ impl Handler {
         content: &str,
         msg: &Message,
     ) -> String {
-        let command = format!("tellraw @a {}", self.cfg.minecraft_config.tellraw_template);
+        let command = format!(
+            "tellraw @a [{}, {}]",
+            self.cfg.minecraft_config.templates.username_template, content
+        );
 
         // Get the sender's name to send to Minecraft
         let name = if self.cfg.discord_config.use_member_nicks {
@@ -78,8 +95,7 @@ impl Handler {
 
         // Fill in our placeholders
         let command = command.replace("%username%", &name);
-        let command = command.replace("%mention%", &author.mention());
-        command.replace("%content%", content)
+        command.replace("%mention%", &author.mention())
     }
 
     ///
@@ -148,11 +164,16 @@ impl EventHandler for Handler {
         // Send a separate message for each line
         let lines = content.split("\n");
         let lines = truncate_lines(lines);
-        let mut lines = apply_line_template(lines);
+        let mut lines = self.apply_line_template(lines);
 
         // Add attachement message if an attachment is present
         if !msg.attachments.is_empty() {
-            let line = ATTACHMENT_TELLRAW_TEMPLATE;
+            let line = self
+                .cfg
+                .minecraft_config
+                .templates
+                .attachment_template
+                .clone();
             let line = line.replace("%num%", &msg.attachments.len().to_string());
             let line = line.replace("%url%", &msg.attachments.first().unwrap().url);
             lines.push(line);
@@ -226,22 +247,6 @@ impl EventHandler for Handler {
 
         self.is_watching.swap(true, Ordering::Relaxed);
     }
-}
-
-///
-/// Put each given line into a JSON structure to be passed to the
-/// Minecraft tellraw command.
-///
-fn apply_line_template(lines: Vec<String>) -> Vec<String> {
-    let mut formatted_lines: Vec<String> = Vec::new();
-
-    for line in lines {
-        let formatted = MESSAGE_TELLRAW_TEMPLATE;
-        let formatted = formatted.replace("%text%", line.as_str());
-        formatted_lines.push(formatted);
-    }
-
-    formatted_lines
 }
 
 ///

@@ -28,9 +28,16 @@ pub struct MinecraftConfig {
     pub rcon_ip: String,
     pub rcon_port: i32,
     pub rcon_password: String,
-    pub tellraw_template: String,
     pub custom_death_keywords: Vec<String>,
     pub log_file_path: String,
+    pub templates: TellrawTemplates,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TellrawTemplates {
+    pub username_template: String,
+    pub attachment_template: String,
+    pub message_template: String,
 }
 
 impl Default for RootConfig {
@@ -50,11 +57,13 @@ impl Default for RootConfig {
                 rcon_ip: String::from("localhost"),
                 rcon_port: 25575,
                 rcon_password: String::new(),
-                tellraw_template: String::from(
-                    "[{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"%mention% \"}}, %content%]",
-                ),
                 custom_death_keywords: Vec::new(),
                 log_file_path: String::new(),
+                templates: TellrawTemplates {
+                    username_template: String::from("{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"%mention% \"}}",),
+                    attachment_template: String::from("{\"color\":\"gray\",\"text\":\"[%num% attachment(s) sent]\", \"clickEvent\":{\"action\":\"open_url\",\"value\":\"%url%\"},\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to open\"}}}"),
+                    message_template: String::from("{\"color\":\"white\", \"text\":\"%text%\"}"),
+                },
             },
         }
     }

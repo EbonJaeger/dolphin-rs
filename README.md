@@ -42,19 +42,46 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 ### Minecraft Message Template
 
-You can (to a degree) customize the message format for messages being sent to Minecraft (via the [tellraw command](https://minecraft.gamepedia.com/Commands/tellraw)). This value should be a JSON array of objects. For a list of various things you can use, see [this wiki page](https://minecraft.gamepedia.com/Raw_JSON_text_format#Java_Edition). If you are unsure about what this does, the default matches Vanilla Minecraft chat output.
+You can customize the message format for messages being sent to Minecraft (via the [tellraw command](https://minecraft.gamepedia.com/Commands/tellraw)). For a list of the various things you can use with the tellraw command, see [this wiki page](https://minecraft.gamepedia.com/Raw_JSON_text_format#Java_Edition). If you are unsure about what this does, the defaults match Vanilla Minecraft chat output.
 
-Default:
+### Defaults
+
+`username_template`:
 
 ```json
-[{"color": "white", "text": "<%username%> ", "clickEvent":{"action":"suggest_command", "value":"%mention% "}}, %content%]
+{
+  "color": "white",
+  "text": "<%username%> ",
+  "clickEvent": { "action": "suggest_command", "value": "%mention% " }
+}
+```
+
+`attachment_template`:
+
+```json
+{
+  "color": "gray",
+  "text": "[%num% attachment(s) sent]",
+  "clickEvent": { "action": "open_url", "value": "%url%" },
+  "hoverEvent": { "action": "show_text", "value": { "text": "Click to open" } }
+}
+```
+
+`message_template`:
+
+```json
+{ "color": "white", "text": "%content%" }
 ```
 
 ### Placeholders
 
-There are two placeholders that **must** be used: `%username%` and `%content%`, else the text wont be replaced and you'll end up with the placeholders in your chat window, and nobody wants that. Additionally you can use the following optional placeholders: `%mention%`
+There are a few placeholders you can use in the templates to customize your chat messages in Minecraft:
 
-The way this is handled should be improved in the future, but that may lead to less customizability. I'm not sure how I want to handle that just yet.
+- `%content%`
+- `%mention%`
+- `%num` **Note:** This is only used for attachment messages to show how many attachments there are.
+- `%url` **Note:** This is only used for attachment messages to open the first attachment on click.
+- `%username`
 
 ## Usage
 
