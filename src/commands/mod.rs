@@ -1,3 +1,4 @@
-pub mod game;
+pub mod general;
+pub mod minecraft;
 
 mod embed;

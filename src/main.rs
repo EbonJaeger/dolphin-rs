@@ -11,7 +11,7 @@ extern crate clap;
 extern crate lazy_static;
 
 use clap::{App, Arg};
-use commands::game::*;
+use commands::{general::*, minecraft::*};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
@@ -23,20 +23,20 @@ use serenity::{
 use simplelog::*;
 use std::{collections::HashSet, error::Error, process, sync::Arc};
 
-type ResultBase = Result<(), Box<dyn Error>>;
-
 struct ConfigContainer;
 
 impl TypeMapKey for ConfigContainer {
     type Value = Arc<RootConfig>;
 }
 
-#[group("game")]
+#[group]
+#[description = "Commands to interact with the Minecraft server."]
+#[only_in("guild")]
 #[commands(list)]
-struct Game;
+struct Minecraft;
 
 #[tokio::main()]
-async fn main() -> ResultBase {
+async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("dolphin")
         .about("Discord and Minecraft chat bridge (re-)written in Rust")
         .author("Evan Maddock <maddock.evan@vivaldi.net>")
@@ -93,7 +93,8 @@ async fn main() -> ResultBase {
     // Create the framework
     let framework = StandardFramework::new()
         .configure(|c| c.owners(owners).prefix("!"))
-        .group(&GAME_GROUP);
+        .help(&SHOW_HELP)
+        .group(&MINECRAFT_GROUP);
 
     // Create the Discord client
     let mut client = Client::new(&bot_token)

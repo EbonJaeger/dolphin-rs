@@ -9,6 +9,7 @@ use serenity::{
 use tokio::time::{delay_for, Duration};
 
 #[command]
+#[description = "List all online players on the Minecraft server."]
 pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResult {
     let data = ctx.data.read().await;
 
