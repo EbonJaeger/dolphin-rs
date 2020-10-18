@@ -4,7 +4,9 @@ This is an implementation of my Dolphin Discord/Minecraft bridge in Rust, in ord
 
 ## Building and Running
 
-To build the release (and optimized) version, run `cargo build --release`. The resulting binary will be `target/release/dolphin-rs`.
+You'll need Cargo to build this. If you don't have Cargo installed, you can get it via rustup [here](https://rustup.rs).
+
+To build the release (and optimized) version, run `cargo build --release`. The resulting binary will be `target/release/dolphin-rs`. To build and run `dolphin-rs` all in one go, you can use `cargo run --release`.
 
 ## Setup
 
