@@ -44,7 +44,7 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 You can customize the message format for messages being sent to Minecraft (via the [tellraw command](https://minecraft.gamepedia.com/Commands/tellraw)). For a list of the various things you can use with the tellraw command, see [this wiki page](https://minecraft.gamepedia.com/Raw_JSON_text_format#Java_Edition). If you are unsure about what this does, the defaults match Vanilla Minecraft chat output.
 
-### Defaults
+#### Defaults
 
 `username_template`:
 
@@ -73,7 +73,7 @@ You can customize the message format for messages being sent to Minecraft (via t
 { "color": "white", "text": "%content%" }
 ```
 
-### Placeholders
+#### Placeholders
 
 There are a few placeholders you can use in the templates to customize your chat messages in Minecraft:
 
