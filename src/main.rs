@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .group(&MINECRAFT_GROUP);
 
     // Create the Discord client
-    let mut client = Client::new(&bot_token)
+    let mut client = Client::builder(&bot_token)
         .framework(framework)
         .event_handler(handler)
         .await
