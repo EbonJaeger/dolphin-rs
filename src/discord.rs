@@ -1,6 +1,6 @@
 use crate::config::RootConfig;
+use crate::errors::DolphinError;
 use crate::minecraft::{MessageParser, MinecraftMessage, Source};
-use err_derive::Error;
 use linemux::MuxedLines;
 use rcon::Connection;
 use regex::Regex;
@@ -24,16 +24,6 @@ use std::{
 use tokio::stream::StreamExt;
 
 const MAX_LINE_LENGTH: usize = 100;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(display = "{}", _0)]
-    Discord(#[error(source)] serenity::Error),
-    #[error(display = "{}", _0)]
-    Io(#[error(source)] std::io::Error),
-    #[error(display = "{}", _0)]
-    Rcon(#[error(source)] rcon::Error),
-}
 
 pub struct Handler {
     cfg: Arc<RootConfig>,
@@ -111,7 +101,7 @@ impl Handler {
         ctx: &Context,
         content: &str,
         msg: &Message,
-    ) -> Result<(), Error> {
+    ) -> Result<(), DolphinError> {
         let command = self.build_tellraw_command(author, ctx, content, msg).await;
         debug!("{}", command);
 
@@ -127,13 +117,13 @@ impl Handler {
             .await
         {
             Ok(conn) => conn,
-            Err(e) => return Err(Error::Rcon(e)),
+            Err(e) => return Err(DolphinError::Rcon(e)),
         };
 
         // Send the command to Minecraft
         match conn.cmd(command.as_str()).await {
             Ok(_) => Ok(()),
-            Err(e) => Err(Error::Rcon(e)),
+            Err(e) => Err(DolphinError::Rcon(e)),
         }
     }
 }
@@ -390,17 +380,17 @@ async fn post_to_webhook(
     ctx: Arc<Context>,
     message: MinecraftMessage,
     url: &str,
-) -> Result<(), String> {
+) -> Result<(), DolphinError> {
     // Split the url into the webhook id an token
     let parts = match split_webhook_url(url) {
         Some(parts) => parts,
-        None => return Err("invalid webhook url".to_string()),
+        None => return Err(DolphinError::Other("invalid webhook url")),
     };
 
     // Get the webhook using the id and token
     let webhook = match ctx.http.get_webhook_with_token(parts.0, parts.1).await {
         Ok(webhook) => webhook,
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(DolphinError::Discord(e)),
     };
 
     // Get the avatar URL
@@ -419,7 +409,7 @@ async fn post_to_webhook(
         .await
     {
         Ok(_) => Ok(()),
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(DolphinError::Discord(e)),
     }
 }
 
