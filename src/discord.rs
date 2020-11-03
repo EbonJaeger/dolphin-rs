@@ -22,7 +22,7 @@ use std::{
     },
 };
 use tokio::stream::StreamExt;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 const MAX_LINE_LENGTH: usize = 100;
 
@@ -353,6 +353,8 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String)
                     cloned = cloned.replace(w, &member.mention());
                 }
             });
+    } else {
+        warn!("Unable to get the Guild from the cache: Guild not found");
     }
 
     cloned
