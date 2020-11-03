@@ -7,6 +7,7 @@ use serenity::{
     utils::Colour,
 };
 use tokio::time::{delay_for, Duration};
+use tracing::error;
 
 #[command]
 #[description = "List all online players on the Minecraft server."]

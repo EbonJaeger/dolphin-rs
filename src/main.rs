@@ -5,8 +5,6 @@ mod errors;
 mod minecraft;
 
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate clap;
 #[macro_use]
 extern crate lazy_static;
@@ -21,8 +19,8 @@ use serenity::{
     http::Http,
     prelude::*,
 };
-use simplelog::*;
 use std::{collections::HashSet, error::Error, process, sync::Arc};
+use tracing::{info, warn, Level};
 
 struct ConfigContainer;
 
@@ -50,12 +48,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
 
     let log_level = if matches.is_present("debug") {
-        LevelFilter::Debug
+        Level::DEBUG
     } else {
-        LevelFilter::Info
+        Level::INFO
     };
 
-    TermLogger::init(log_level, Config::default(), TerminalMode::Mixed).unwrap();
+    // Set up the logging system
+    tracing_subscriber::fmt()
+        .pretty()
+        .compact()
+        .with_target(false)
+        .with_max_level(log_level)
+        .init();
 
     let cfg: config::RootConfig =
         confy::load("dolphin").expect("Unable to load the configuration file");

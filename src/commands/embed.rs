@@ -1,6 +1,7 @@
 use serenity::{client::Context, model::prelude::Message, utils::Colour, Error};
 use std::fmt::Display;
 use tokio::time::{delay_for, Duration};
+use tracing::error;
 
 ///
 /// Send an embed as a reply to a command if there was
