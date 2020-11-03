@@ -206,13 +206,12 @@ impl EventHandler for Handler {
 
         let guild_id = self.guild_id.load(Ordering::Relaxed);
         let guild_id = GuildId(guild_id);
-
         let log_path = &cfg.minecraft_config.log_file_path;
-        info!("Using log file at '{}'", log_path);
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
-            let ctx_cloned = Arc::clone(&ctx);
+            info!("Using log file at '{}'", log_path);
+
             let parser = MessageParser::new(cfg.minecraft_config.custom_death_keywords.clone());
 
             // Create our log watcher
@@ -226,7 +225,7 @@ impl EventHandler for Handler {
             tokio::spawn(async move {
                 info!("Started watching the Minecraft log file");
                 watch_log_file(
-                    ctx_cloned,
+                    Arc::clone(&ctx),
                     Arc::clone(&cfg),
                     guild_id,
                     &mut log_watcher,
