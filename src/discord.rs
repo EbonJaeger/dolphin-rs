@@ -339,36 +339,21 @@ async fn watch_log_file(
 async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String) -> String {
     let mut cloned = message.clone();
 
-    // Get the members from the Guild
-    let members = match ctx.cache.guild_field(guild_id, |g| g.members.clone()).await {
-        Some(members) => members,
-        None => return cloned,
-    };
-
-    /*
-     * Split the message on whitespace, and filter out any words that don't
-     * start with an '@' symbol. For each word that does, look to see if it
-     * matches any of the member names, and replace the original word with
-     * their @mention.
-     */
-    message
-        .split_whitespace()
-        .filter(|w| w.starts_with('@'))
-        .for_each(|m| {
-            let name = &m[1..];
-            for member in members.values() {
-                if member
-                    .nick
-                    .as_ref()
-                    .unwrap_or(&member.user.name)
-                    .eq_ignore_ascii_case(name)
-                    || member.user.name.eq_ignore_ascii_case(name)
-                {
-                    cloned = cloned.replace(m, &member.mention());
-                    break;
+    if let Some(guild) = ctx.cache.guild(guild_id).await {
+        /*
+         * Split the message on whitespace, and filter out any words that don't
+         * start with an '@' symbol.
+         */
+        message
+            .split_whitespace()
+            .filter(|w| w.starts_with('@'))
+            .for_each(|w| {
+                let name = &w[1..];
+                if let Some(member) = guild.member_named(name) {
+                    cloned = cloned.replace(w, &member.mention());
                 }
-            }
-        });
+            });
+    }
 
     cloned
 }

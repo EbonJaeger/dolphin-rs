@@ -16,7 +16,11 @@ You should be able to just run the attached precompiled binary found on the [rel
 
 ## Setup
 
-Create a Discord bot [here](https://discordapp.com/developers/applications/me). Next, add the bot to your Discord server using this link, replacing the Client ID with your bot's ID:
+Create a Discord bot [here](https://discord.com/developers/applications/me).
+
+In the Bot tab on the left, you **must** enable both the Presense Intent and the Server Members Intent. These are required so Minecraft players can tag Discord users.
+
+Next, invite the bot to your Discord server using this link, replacing the Client ID with your bot's ID:
 
 ```
 https://discord.com/api/oauth2/authorize?client_id=<CLIENT_ID>&permissions=10240&scope=bot

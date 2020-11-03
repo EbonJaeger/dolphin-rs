@@ -14,7 +14,7 @@ use commands::{general::*, minecraft::*};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
-    client::validate_token,
+    client::{bridge::gateway::GatewayIntents, validate_token},
     framework::{standard::macros::group, StandardFramework},
     http::Http,
     prelude::*,
@@ -105,6 +105,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut client = Client::builder(&bot_token)
         .framework(framework)
         .event_handler(handler)
+        .intents(
+            GatewayIntents::GUILDS
+                | GatewayIntents::GUILD_MEMBERS
+                | GatewayIntents::GUILD_MESSAGES
+                | GatewayIntents::GUILD_PRESENCES,
+        )
         .await
         .expect("Error creating Discord client");
 
