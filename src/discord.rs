@@ -104,7 +104,7 @@ impl Handler {
         msg: &Message,
     ) -> Result<(), DolphinError> {
         let command = self.build_tellraw_command(author, ctx, content, msg).await;
-        debug!("{}", command);
+        debug!("send_to_minecraft: {}", command);
 
         // Create RCON connection
         let addr = format!(
@@ -144,11 +144,11 @@ impl EventHandler for Handler {
 
         // Ignore messages that are from ourselves
         if msg.author.id == bot.id || msg.webhook_id.is_some() {
-            debug!("Skipping message from ourselves or webhook");
+            debug!("event_handler:message: skipping message from ourselves or webhook");
             return;
         }
 
-        debug!("Received a message from Discord");
+        debug!("event_handler:message: received a message from Discord");
 
         let content = msg.content.clone();
 
@@ -173,7 +173,7 @@ impl EventHandler for Handler {
         // Send each line to Minecraft
         for (index, line) in lines.iter().enumerate() {
             debug!(
-                "Sending a chat message to Minecraft: Part {}/{}",
+                "event_handler:message: sending a chat message to Minecraft: part {}/{}",
                 index + 1,
                 lines.len()
             );
