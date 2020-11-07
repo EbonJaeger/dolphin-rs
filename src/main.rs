@@ -73,10 +73,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         warn!("| Discord bot token is either missing or invalid!                                               |");
         warn!("|                                                                                               |");
         warn!("| Create a Discord bot here:                                                                    |");
-        warn!("| https://discordapp.com/developers/applications/me                                             |");
+        warn!("| https://discord.com/developers/applications/me                                             |");
         warn!("|                                                                                               |");
         warn!("| Copy the token into your config file, and add the bot to your server with this URL:           |");
-        warn!("| https://discordapp.com/oauth2/authorize?client_id=<BOT CLIENT ID>&permissions=10240&scope=bot |");
+        warn!("| https://discord.com/oauth2/authorize?client_id=<BOT CLIENT ID>&permissions=10240&scope=bot |");
         warn!("+-----------------------------------------------------------------------------------------------+");
         process::exit(0);
     }
