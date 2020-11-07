@@ -41,6 +41,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .author("Evan Maddock <maddock.evan@vivaldi.net>")
         .version(crate_version!())
         .arg(
+            Arg::with_name("config")
+                .long("config")
+                .short("c")
+                .help("Creates or loads the configuration at the given path")
+                .takes_value(true)
+                .value_name("FILE"),
+        )
+        .arg(
             Arg::with_name("debug")
                 .long("debug")
                 .help("Print extra debug messages to stdout"),
@@ -61,8 +69,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_max_level(log_level)
         .init();
 
-    let cfg: config::RootConfig =
-        confy::load("dolphin").expect("Unable to load the configuration file");
+    let cfg: config::RootConfig = if matches.value_of("config").is_some() {
+        let path = matches
+            .value_of("config")
+            .expect("Unable to read command argument");
+        confy::load_path(path).expect("Unable to load the configuration file")
+    } else {
+        confy::load("dolphin").expect("Unable to load the configuration file")
+    };
+
     let cfg_arc = Arc::new(cfg);
     info!("Config loaded successfully");
 

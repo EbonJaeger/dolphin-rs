@@ -315,7 +315,6 @@ dependencies = [
  "regex",
  "serde",
  "serenity",
- "simplelog",
  "tokio",
  "tracing",
  "tracing-subscriber",
