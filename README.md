@@ -90,15 +90,21 @@ There are a few placeholders you can use in the templates to customize your chat
 ## Usage
 
 ```
-./dolphin-rs [FLAGS]
+./dolphin-rs [FLAGS] [OPTIONS]
 ```
 
 Flags:
 
 ```
-    --debug   - Print additional debug lines to stdout
--h  --help    - Print the help message
--v  --version - Prints the version info
+    --debug         - Print additional debug lines to stdout
+-h  --help          - Print the help message
+-V  --version       - Prints the version info
+```
+
+Options:
+
+```
+-c  --config <FILE> - Load or generate the config at the given path
 ```
 
 ## License
