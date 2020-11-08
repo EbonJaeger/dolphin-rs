@@ -1,6 +1,6 @@
 # Dolphin-RS
 
-This is an implementation of my Dolphin Discord/Minecraft bridge in Rust, in order to help me learn Rust. This project may or may not ever actually go anywhere.
+This is an implementation of my [Dolphin](https://gitlab.com/EbonJaeger/dolphin) Discord/Minecraft bridge in Rust, in order to help me learn Rust. This project is the successor and continuation of Dolphin.
 
 ## Building and Running
 
