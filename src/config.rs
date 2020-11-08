@@ -62,7 +62,7 @@ impl Default for RootConfig {
                 templates: TellrawTemplates {
                     username_template: String::from("{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"%mention% \"}}",),
                     attachment_template: String::from("{\"color\":\"gray\",\"text\":\"[%num% attachment(s) sent]\", \"clickEvent\":{\"action\":\"open_url\",\"value\":\"%url%\"},\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to open\"}}}"),
-                    message_template: String::from("{\"color\":\"white\", \"text\":\"%text%\"}"),
+                    message_template: String::from("{\"color\":\"white\", \"text\":\"%content%\"}"),
                 },
             },
         }
