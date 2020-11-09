@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Config loaded successfully");
 
     // validate the bot token
-    let bot_token = cfg_arc.discord_config.bot_token.clone();
+    let bot_token = cfg_arc.get_bot_token();
     if validate_token(bot_token.clone()).is_err() {
         warn!("+--------------------------------------------------------------------------------------------+");
         warn!("| Discord bot token is either missing or invalid!                                            |");

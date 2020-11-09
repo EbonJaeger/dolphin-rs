@@ -16,14 +16,11 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
 
     if let Some(config) = data.get::<ConfigContainer>() {
         // Create RCON connection
-        let addr = format!(
-            "{}:{}",
-            config.minecraft_config.rcon_ip, config.minecraft_config.rcon_port
-        );
+        let addr = config.get_rcon_addr();
 
         let mut conn = match Connection::builder()
             .enable_minecraft_quirks(true)
-            .connect(addr, config.minecraft_config.rcon_password.as_str())
+            .connect(addr, config.get_rcon_password().as_str())
             .await
         {
             Ok(conn) => conn,

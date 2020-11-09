@@ -49,7 +49,7 @@ impl Handler {
         let mut formatted_lines: Vec<String> = Vec::new();
 
         for line in lines {
-            let formatted = self.cfg.minecraft_config.templates.message_template.clone();
+            let formatted = self.cfg.get_message_template();
             let formatted = formatted.replace("%content%", line.as_str());
             formatted_lines.push(formatted);
         }
@@ -71,11 +71,12 @@ impl Handler {
     ) -> String {
         let command = format!(
             "tellraw @a [{}, {}]",
-            self.cfg.minecraft_config.templates.username_template, content
+            self.cfg.get_username_template(),
+            content
         );
 
         // Get the sender's name to send to Minecraft
-        let name = if self.cfg.discord_config.use_member_nicks {
+        let name = if self.cfg.use_member_nicks() {
             author
                 .nick_in(&ctx.http, msg.guild_id.unwrap())
                 .await
@@ -107,14 +108,11 @@ impl Handler {
         debug!("send_to_minecraft: {}", command);
 
         // Create RCON connection
-        let addr = format!(
-            "{}:{}",
-            self.cfg.minecraft_config.rcon_ip, self.cfg.minecraft_config.rcon_port
-        );
+        let addr = self.cfg.get_rcon_addr();
 
         let mut conn = match Connection::builder()
             .enable_minecraft_quirks(true)
-            .connect(addr, self.cfg.minecraft_config.rcon_password.as_str())
+            .connect(addr, self.cfg.get_rcon_password().as_str())
             .await
         {
             Ok(conn) => conn,
@@ -132,7 +130,7 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        let configured_id = self.cfg.discord_config.channel_id;
+        let configured_id = self.cfg.get_channel_id();
 
         // Ignore messages that aren't from the configured channel
         if msg.channel_id.as_u64() != &configured_id {
@@ -159,12 +157,7 @@ impl EventHandler for Handler {
 
         // Add attachement message if an attachment is present
         if !msg.attachments.is_empty() {
-            let line = self
-                .cfg
-                .minecraft_config
-                .templates
-                .attachment_template
-                .clone();
+            let line = self.cfg.get_attachment_template();
             let line = line.replace("%num%", &msg.attachments.len().to_string());
             let line = line.replace("%url%", &msg.attachments.first().unwrap().url);
             lines.push(line);
@@ -206,13 +199,13 @@ impl EventHandler for Handler {
 
         let guild_id = self.guild_id.load(Ordering::Relaxed);
         let guild_id = GuildId(guild_id);
-        let log_path = &cfg.minecraft_config.log_file_path;
+        let log_path = &cfg.get_log_path();
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
             info!("Using log file at '{}'", log_path);
 
-            let parser = MessageParser::new(cfg.minecraft_config.custom_death_keywords.clone());
+            let parser = MessageParser::new(cfg.get_death_keywords());
 
             // Create our log watcher
             let mut log_watcher = MuxedLines::new().unwrap();
@@ -298,7 +291,7 @@ async fn watch_log_file(
         };
 
         let mut content = message.content.clone();
-        if cfg.discord_config.allow_mentions {
+        if cfg.mentions_allowed() {
             content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
         }
 
@@ -309,8 +302,8 @@ async fn watch_log_file(
         };
 
         // Check if we should use a webhook to post the message
-        if cfg.discord_config.webhook_config.enabled {
-            let url = &cfg.discord_config.webhook_config.url;
+        if cfg.webhook_enabled() {
+            let url = &cfg.webhook_url();
 
             if let Err(e) = post_to_webhook(Arc::clone(&ctx), message, url).await {
                 error!("Error posting to webhook: {}", e);
@@ -322,10 +315,7 @@ async fn watch_log_file(
                 Source::Server => message.content,
             };
 
-            if let Err(e) = ChannelId(cfg.discord_config.channel_id)
-                .say(&ctx, final_msg)
-                .await
-            {
+            if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
                 error!("Error sending a message to Discord: {:?}", e);
             }
         }

@@ -4,40 +4,40 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RootConfig {
-    pub discord_config: DiscordConfig,
-    pub minecraft_config: MinecraftConfig,
+    discord_config: DiscordConfig,
+    minecraft_config: MinecraftConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
-    pub bot_token: String,
-    pub channel_id: u64,
-    pub allow_mentions: bool,
-    pub use_member_nicks: bool,
-    pub webhook_config: WebhookConfig,
+    bot_token: String,
+    channel_id: u64,
+    allow_mentions: bool,
+    use_member_nicks: bool,
+    webhook_config: WebhookConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
-    pub enabled: bool,
-    pub url: String,
+    enabled: bool,
+    url: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MinecraftConfig {
-    pub rcon_ip: String,
-    pub rcon_port: i32,
-    pub rcon_password: String,
-    pub custom_death_keywords: Vec<String>,
-    pub log_file_path: String,
-    pub templates: TellrawTemplates,
+    rcon_ip: String,
+    rcon_port: i32,
+    rcon_password: String,
+    custom_death_keywords: Vec<String>,
+    log_file_path: String,
+    templates: TellrawTemplates,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TellrawTemplates {
-    pub username_template: String,
-    pub attachment_template: String,
-    pub message_template: String,
+    username_template: String,
+    attachment_template: String,
+    message_template: String,
 }
 
 impl Default for RootConfig {
@@ -66,5 +66,62 @@ impl Default for RootConfig {
                 },
             },
         }
+    }
+}
+
+impl RootConfig {
+    pub fn get_bot_token(&self) -> String {
+        self.discord_config.bot_token.clone()
+    }
+
+    pub fn get_channel_id(&self) -> u64 {
+        self.discord_config.channel_id
+    }
+
+    pub fn mentions_allowed(&self) -> bool {
+        self.discord_config.allow_mentions
+    }
+
+    pub fn use_member_nicks(&self) -> bool {
+        self.discord_config.use_member_nicks
+    }
+
+    pub fn webhook_enabled(&self) -> bool {
+        self.discord_config.webhook_config.enabled
+    }
+
+    pub fn webhook_url(&self) -> String {
+        self.discord_config.webhook_config.url.clone()
+    }
+
+    pub fn get_rcon_addr(&self) -> String {
+        format!(
+            "{}:{}",
+            self.minecraft_config.rcon_ip, self.minecraft_config.rcon_port
+        )
+    }
+
+    pub fn get_rcon_password(&self) -> String {
+        self.minecraft_config.rcon_password.clone()
+    }
+
+    pub fn get_death_keywords(&self) -> Vec<String> {
+        self.minecraft_config.custom_death_keywords.clone()
+    }
+
+    pub fn get_log_path(&self) -> String {
+        self.minecraft_config.log_file_path.clone()
+    }
+
+    pub fn get_attachment_template(&self) -> String {
+        self.minecraft_config.templates.attachment_template.clone()
+    }
+
+    pub fn get_message_template(&self) -> String {
+        self.minecraft_config.templates.message_template.clone()
+    }
+
+    pub fn get_username_template(&self) -> String {
+        self.minecraft_config.templates.username_template.clone()
     }
 }
