@@ -87,7 +87,7 @@ impl Handler {
 
         // Fill in our placeholders
         let command = command.replace("%username%", &name);
-        command.replace("%mention%", &author.mention())
+        command.replace("%mention%", format!("@{}", &author.tag()).as_str())
     }
 
     ///
