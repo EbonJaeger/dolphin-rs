@@ -91,6 +91,74 @@ impl Handler {
     }
 
     ///
+    /// Performs some string replacements for mentions and escapes quotes on
+    /// messages that are to be sent to the Minecraft server.
+    ///
+    async fn sanitize_message(&self, ctx: &Context, msg: &Message) -> Result<String, DolphinError> {
+        let content = msg.content.clone();
+        let mut sanitized = msg.content.clone();
+
+        // We have to do all this nonsense for channel mentions because
+        // the Discord API devs are braindead.
+        let chan_mentions: Vec<&str> = content
+            .split_whitespace()
+            .filter(|w| w.starts_with("<#"))
+            .filter(|w| w.ends_with('>'))
+            .collect();
+
+        for chan_mention in chan_mentions {
+            let id = match chan_mention.get(2..chan_mention.len() - 1) {
+                Some(id) => match id.parse::<u64>() {
+                    Ok(num) => num,
+                    Err(e) => return Err(DolphinError::Parse(e)),
+                },
+                None => continue,
+            };
+
+            let channel = match ctx.cache.guild_channel(id).await {
+                Some(channel) => channel,
+                None => {
+                    debug!(
+                        "handler:sanitize_message: Unable to find a channel for id '{}'",
+                        id
+                    );
+                    continue;
+                }
+            };
+
+            sanitized = sanitized.replace(
+                format!("<#{}>", id).as_str(),
+                format!("#{}", channel.name()).as_str(),
+            );
+        }
+
+        for role_mention in &msg.mention_roles {
+            let role = match role_mention.to_role_cached(&ctx.cache).await {
+                Some(role) => role,
+                None => {
+                    warn!("handler:sanitize_message: Role was mentioned but not found in the cache: {}", role_mention);
+                    continue;
+                }
+            };
+            sanitized = sanitized.replace(
+                role_mention.mention().as_str(),
+                format!("@{}", role.name).as_str(),
+            );
+        }
+
+        for user_mention in &msg.mentions {
+            sanitized = sanitized.replace(
+                format!("<@!{}>", user_mention.id).as_str(),
+                format!("@{}", user_mention.name).as_str(),
+            );
+        }
+
+        let sanitized = sanitized.replace("\"", "\\\"");
+
+        Ok(sanitized)
+    }
+
+    ///
     /// Send a tellraw message to the Minecraft server via RCON. Content
     /// should be a valid JSON Object that the game can parse and display.
     ///
@@ -147,8 +215,16 @@ impl EventHandler for Handler {
         }
 
         debug!("event_handler:message: received a message from Discord");
-
-        let content = msg.content.clone();
+        let content = match self.sanitize_message(&ctx, &msg).await {
+            Ok(string) => string,
+            Err(e) => {
+                error!(
+                    "event_handler:message: Error sanitizing message content: {}",
+                    e
+                );
+                return;
+            }
+        };
 
         // Send a separate message for each line
         let lines = content.split("\n");

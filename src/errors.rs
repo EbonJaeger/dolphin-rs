@@ -9,6 +9,7 @@ pub enum DolphinError {
     #[error(display = "{}", _0)]
     Other(&'static str),
     #[error(display = "{}", _0)]
+    Parse(#[error(source)] std::num::ParseIntError),
+    #[error(display = "{}", _0)]
     Rcon(#[error(source)] rcon::Error),
 }
-
