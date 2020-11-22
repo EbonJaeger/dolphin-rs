@@ -78,7 +78,7 @@ impl Handler {
         // Get the sender's name to send to Minecraft
         let name = if self.cfg.use_member_nicks() {
             author
-                .nick_in(&ctx.http, msg.guild_id.unwrap())
+                .nick_in(&ctx, msg.guild_id.unwrap())
                 .await
                 .unwrap_or_else(|| author.name.clone())
         } else {
