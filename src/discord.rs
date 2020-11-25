@@ -389,27 +389,50 @@ async fn watch_log_file(
 /// to replace that text with an actual Discord @mention.
 ///
 async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String) -> String {
-    let mut cloned = message.clone();
+    let mut ret = message.clone();
 
     if let Some(guild) = ctx.cache.guild(guild_id).await {
-        /*
-         * Split the message on whitespace, and filter out any words that don't
-         * start with an '@' symbol.
-         */
-        message
-            .split_whitespace()
-            .filter(|w| w.starts_with('@'))
-            .for_each(|w| {
-                let name = &w[1..];
-                if let Some(member) = guild.member_named(name) {
-                    cloned = cloned.replace(w, &member.mention());
+        // Try to match names using the full name and optionally
+        // the user descriptor. This works for names that have
+        // spaces in them, and really probably anything else.
+        let mut found_start = false;
+        let mut start = 0;
+        let mut end = 0;
+        let cloned = ret.clone();
+        for (i, c) in cloned.char_indices() {
+            if c == '@' {
+                found_start = true;
+                start = i;
+            } else if found_start && c == '#' {
+                end = i + 5;
+            } else if found_start && c == ' ' {
+                end = i;
+            } else if found_start && cloned.len() == i + 1 {
+                end = i + 1;
+            }
+
+            // Check to see if we have a mention
+            if found_start && end > 0 {
+                if let Some(mention) = cloned.get(start..end) {
+                    debug!(
+                        "discord:replace_mentions: Found a mention using char iteration: '{}'",
+                        mention
+                    );
+                    let name = &mention[1..];
+                    if let Some(member) = guild.member_named(name) {
+                        ret = ret.replace(mention, &member.mention());
+                        start = 0;
+                        end = 0;
+                        found_start = false;
+                    }
                 }
-            });
+            }
+        }
     } else {
         warn!("Unable to get the Guild from the cache: Guild not found");
     }
 
-    cloned
+    ret
 }
 
 ///
