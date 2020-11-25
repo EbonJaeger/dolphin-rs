@@ -1,5 +1,5 @@
-use crate::{commands::embed::*, ConfigContainer};
-use rcon::*;
+use crate::{errors::DolphinError, ConfigContainer};
+use rcon::Connection;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::*,
@@ -7,7 +7,6 @@ use serenity::{
     utils::Colour,
 };
 use tokio::time::{delay_for, Duration};
-use tracing::error;
 
 #[command]
 #[description = "List all online players on the Minecraft server."]
@@ -18,44 +17,28 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
         // Create RCON connection
         let addr = config.get_rcon_addr();
 
-        let mut conn = match Connection::builder()
+        let mut conn = Connection::builder()
             .enable_minecraft_quirks(true)
             .connect(addr, config.get_rcon_password().as_str())
-            .await
-        {
-            Ok(conn) => conn,
-            Err(e) => {
-                error!("Error performing list command: {:?}", e);
-                send_error_embed(ctx, msg, "Error performing list command!", e).await?;
-                return Ok(());
-            }
-        };
+            .await?;
 
         // Send the `list` command to the Minecraft server
-        let resp = match conn.cmd("minecraft:list").await {
-            Ok(resp) => {
-                if resp.starts_with("Unknown or incomplete command") {
-                    conn.cmd("list").await.unwrap()
-                } else {
-                    resp
-                }
-            }
-            Err(e) => {
-                error!("Error performing list command: {:?}", e);
-                send_error_embed(ctx, msg, "Error performing list command!", e).await?;
-                return Ok(());
-            }
-        };
+        let mut resp = conn.cmd("minecraft:list").await?;
+        if resp.starts_with("Unknown or incomplete command") {
+            resp = conn.cmd("list").await?;
+        }
 
         send_reply(ctx, msg, resp).await?;
     } else {
-        send_error_embed(ctx, msg, "Error performing list command!", "unknown error").await?;
+        return Err(Box::from(DolphinError::Other(
+            "unable to read config from context",
+        )));
     }
 
     Ok(())
 }
 
-async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> CommandResult {
+async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<(), DolphinError> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();
@@ -63,7 +46,7 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> CommandResult
 
     if let Some((online, max)) = get_player_counts(count_line) {
         // Create and send the embed
-        let reply = match msg
+        let reply = msg
             .channel_id
             .send_message(&ctx.http, |m| {
                 m.embed(|e| {
@@ -83,14 +66,7 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> CommandResult
 
                 m
             })
-            .await
-        {
-            Ok(message) => message,
-            Err(e) => {
-                error!("Error sending command reply: {:?}", e);
-                return Ok(());
-            }
-        };
+            .await?;
 
         delay_for(Duration::new(30, 0)).await;
         reply.delete(&ctx.http).await?;

@@ -1,7 +1,6 @@
 use serenity::{client::Context, model::prelude::Message, utils::Colour, Error};
 use std::fmt::Display;
 use tokio::time::{delay_for, Duration};
-use tracing::error;
 
 ///
 /// Send an embed as a reply to a command if there was
@@ -21,7 +20,7 @@ where
     T: Display,
 {
     // Send the error embed
-    let reply = match msg
+    let reply = msg
         .channel_id
         .send_message(&ctx.http, |m| {
             m.embed(|e| {
@@ -31,20 +30,10 @@ where
                     .footer(|f| f.text(reason))
             })
         })
-        .await
-    {
-        Ok(message) => message,
-        Err(e) => return Err(e),
-    };
+        .await?;
 
     // Wait 30 seconds and delete the reply and the originating message
     delay_for(Duration::new(30, 0)).await;
     reply.delete(&ctx.http).await?;
-    match msg.delete(&ctx.http).await {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            error!("Error deleting command message: {:?}", e);
-            Err(e)
-        }
-    }
+    msg.delete(&ctx.http).await
 }

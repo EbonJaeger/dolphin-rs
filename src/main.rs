@@ -10,7 +10,7 @@ extern crate clap;
 extern crate lazy_static;
 
 use clap::{App, Arg};
-use commands::{general::*, minecraft::*};
+use commands::{general::*, hooks::after, minecraft::*};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
@@ -114,7 +114,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let framework = StandardFramework::new()
         .configure(|c| c.owners(owners).prefix("!"))
         .help(&SHOW_HELP)
-        .group(&MINECRAFT_GROUP);
+        .group(&MINECRAFT_GROUP)
+        .after(after);
 
     // Create the Discord client
     let mut client = Client::builder(&bot_token)

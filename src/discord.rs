@@ -177,14 +177,10 @@ impl Handler {
         // Create RCON connection
         let addr = self.cfg.get_rcon_addr();
 
-        let mut conn = match Connection::builder()
+        let mut conn = Connection::builder()
             .enable_minecraft_quirks(true)
             .connect(addr, self.cfg.get_rcon_password().as_str())
-            .await
-        {
-            Ok(conn) => conn,
-            Err(e) => return Err(DolphinError::Rcon(e)),
-        };
+            .await?;
 
         // Send the command to Minecraft
         match conn.cmd(command.as_str()).await {
@@ -431,10 +427,7 @@ async fn post_to_webhook(
     };
 
     // Get the webhook using the id and token
-    let webhook = match ctx.http.get_webhook_with_token(parts.0, parts.1).await {
-        Ok(webhook) => webhook,
-        Err(e) => return Err(DolphinError::Discord(e)),
-    };
+    let webhook = ctx.http.get_webhook_with_token(parts.0, parts.1).await?;
 
     // Get the avatar URL
     let avatar_url = match message.source {
@@ -443,7 +436,7 @@ async fn post_to_webhook(
     };
 
     // Post to the webhook
-    match webhook
+    if let Err(e) = webhook
         .execute(&ctx.http, false, |w| {
             w.avatar_url(avatar_url)
                 .username(message.name)
@@ -451,9 +444,10 @@ async fn post_to_webhook(
         })
         .await
     {
-        Ok(_) => Ok(()),
-        Err(e) => Err(DolphinError::Discord(e)),
+        return Err(DolphinError::Discord(e));
     }
+
+    Ok(())
 }
 
 ///
@@ -475,13 +469,11 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
         return None;
     }
 
-    Some((
-        captures
-            .name("id")
-            .unwrap()
-            .as_str()
-            .parse::<u64>()
-            .unwrap(),
-        captures.name("token").unwrap().as_str(),
-    ))
+    let id = captures.name("id").unwrap().as_str();
+    let id = match id.parse::<u64>() {
+        Ok(num) => num,
+        Err(_) => return None,
+    };
+
+    Some((id, captures.name("token").unwrap().as_str()))
 }
