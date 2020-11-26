@@ -378,7 +378,7 @@ async fn watch_log_file(
             };
 
             if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
-                error!("Error sending a message to Discord: {:?}", e);
+                error!("Error sending a message to Discord: {}", e);
             }
         }
     }
@@ -455,6 +455,7 @@ async fn post_to_webhook(
     // Get the avatar URL
     let avatar_url = match message.source {
         Source::Player => format!("https://minotar.net/helm/{}/256.png", message.name.clone()),
+        // TODO: Do something better than a blind unwrap() here
         Source::Server => ctx.cache.current_user().await.avatar_url().unwrap(),
     };
 

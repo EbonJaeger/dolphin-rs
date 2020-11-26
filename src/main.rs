@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             owners.insert(info.owner.id);
             (owners, info.id)
         }
-        Err(e) => panic!("Could not access application info: {:?}", e),
+        Err(e) => panic!("Could not access application info: {}", e),
     };
 
     // Create the framework
@@ -138,7 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Connect to Discord and wait for events
     info!("Starting Discord client");
     if let Err(e) = client.start().await {
-        eprintln!("Discord client error: {:?}", e);
+        eprintln!("Discord client error: {}", e);
     }
 
     Ok(())
