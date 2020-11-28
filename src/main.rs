@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod discord;
 mod errors;
+mod listener;
 mod minecraft;
 
 #[macro_use]

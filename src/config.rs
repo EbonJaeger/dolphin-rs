@@ -3,9 +3,11 @@ extern crate confy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RootConfig {
     discord_config: DiscordConfig,
     minecraft_config: MinecraftConfig,
+    listener_config: ListenerConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -31,6 +33,12 @@ pub struct MinecraftConfig {
     custom_death_keywords: Vec<String>,
     log_file_path: String,
     templates: TellrawTemplates,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ListenerConfig {
+    enabled: bool,
+    port: u16,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -65,6 +73,10 @@ impl Default for RootConfig {
                     message_template: String::from("{\"color\":\"white\", \"text\":\"%content%\"}"),
                 },
             },
+            listener_config: ListenerConfig {
+                enabled: false,
+                port: 25585,
+            }
         }
     }
 }
@@ -123,5 +135,13 @@ impl RootConfig {
 
     pub fn get_username_template(&self) -> String {
         self.minecraft_config.templates.username_template.clone()
+    }
+
+    pub fn use_listener(&self) -> bool {
+        self.listener_config.enabled
+    }
+
+    pub fn get_listener_port(&self) -> u16 {
+        self.listener_config.port
     }
 }
