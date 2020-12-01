@@ -266,9 +266,9 @@ impl EventHandler for Handler {
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
-            if cfg.use_listener() {
+            if cfg.enable_webserver() {
                 let (tx, mut rx) = mpsc::channel(100);
-                let port = cfg.get_listener_port();
+                let port = cfg.get_webserver_port();
                 tokio::spawn(async move {
                     let listener = Webserver::new(port);
                     listener.listen(tx).await;
@@ -390,7 +390,7 @@ async fn watch_log_file(
     }
 }
 
-pub async fn send_to_discord(
+async fn send_to_discord(
     ctx: Arc<Context>,
     cfg: Arc<RootConfig>,
     guild_id: Arc<GuildId>,

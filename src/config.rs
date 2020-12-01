@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct RootConfig {
     discord_config: DiscordConfig,
     minecraft_config: MinecraftConfig,
-    listener_config: ListenerConfig,
+    webserver_config: WebserverConfig,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ pub struct MinecraftConfig {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ListenerConfig {
+pub struct WebserverConfig {
     enabled: bool,
     port: u16,
 }
@@ -73,7 +73,7 @@ impl Default for RootConfig {
                     message_template: String::from("{\"color\":\"white\", \"text\":\"%content%\"}"),
                 },
             },
-            listener_config: ListenerConfig {
+            webserver_config: WebserverConfig {
                 enabled: false,
                 port: 25585,
             }
@@ -137,11 +137,11 @@ impl RootConfig {
         self.minecraft_config.templates.username_template.clone()
     }
 
-    pub fn use_listener(&self) -> bool {
-        self.listener_config.enabled
+    pub fn enable_webserver(&self) -> bool {
+        self.webserver_config.enabled
     }
 
-    pub fn get_listener_port(&self) -> u16 {
-        self.listener_config.port
+    pub fn get_webserver_port(&self) -> u16 {
+        self.webserver_config.port
     }
 }

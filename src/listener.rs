@@ -26,19 +26,12 @@ impl Listener for Webserver {
             .and(warp::path("message"))
             .and(warp::body::content_length_limit(1024 * 16))
             .and(warp::body::json())
-            // .map(|message: MinecraftMessage| {
-            //     debug!(
-            //         "dolphin:warp: received a message from a Minecraft instance: {:?}",
-            //         message
-            //     );
-            //     warp::reply()
-            // });
             .and_then(move |msg: MinecraftMessage| {
                 let mut txc = tx.clone();
                 async move {
                     match txc.send(msg).await {
-                        Ok(()) => Ok(format!("post success")),
-                        Err(_) => Err(warp::reject::not_found()),
+                        Ok(()) => Ok(""),
+                        Err(_) => Err(warp::reject::reject()),
                     }
                 }
             });
