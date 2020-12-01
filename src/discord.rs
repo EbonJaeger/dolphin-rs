@@ -1,5 +1,6 @@
 use crate::config::RootConfig;
 use crate::errors::DolphinError;
+use crate::listener::{Listener, Webserver};
 use crate::minecraft::{MessageParser, MinecraftMessage, Source};
 use linemux::MuxedLines;
 use rcon::Connection;
@@ -21,7 +22,7 @@ use std::{
         Arc,
     },
 };
-use tokio::stream::StreamExt;
+use tokio::{stream::StreamExt, sync::mpsc};
 use tracing::{debug, error, info, warn};
 
 const MAX_LINE_LENGTH: usize = 100;
@@ -260,34 +261,61 @@ impl EventHandler for Handler {
         }
 
         let guild_id = self.guild_id.load(Ordering::Relaxed);
-        let guild_id = GuildId(guild_id);
+        let guild_id = Arc::new(GuildId(guild_id));
         let log_path = &cfg.get_log_path();
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
-            info!("Using log file at '{}'", log_path);
+            if cfg.enable_webserver() {
+                let (tx, mut rx) = mpsc::channel(100);
+                let port = cfg.get_webserver_port();
+                tokio::spawn(async move {
+                    let listener = Webserver::new(port);
+                    listener.listen(tx).await;
+                });
 
-            let parser = MessageParser::new(cfg.get_death_keywords());
+                tokio::spawn(async move {
+                    while let Some(message) = rx.recv().await {
+                        if let Err(e) = send_to_discord(
+                            Arc::clone(&ctx),
+                            Arc::clone(&cfg),
+                            Arc::clone(&guild_id),
+                            message,
+                        )
+                        .await
+                        {
+                            error!(
+                                "discord:handler: unable to send a message to Discord: {}",
+                                e
+                            );
+                        }
+                    }
+                });
+            } else {
+                info!("Using log file at '{}'", log_path);
 
-            // Create our log watcher
-            let mut log_watcher = MuxedLines::new().unwrap();
-            log_watcher
-                .add_file(&log_path)
-                .await
-                .expect("Unable to add the Minecraft log file to tail");
+                let parser = MessageParser::new(cfg.get_death_keywords());
 
-            // Spawn a task to continuously tail the log file
-            tokio::spawn(async move {
-                info!("Started watching the Minecraft log file");
-                watch_log_file(
-                    Arc::clone(&ctx),
-                    Arc::clone(&cfg),
-                    guild_id,
-                    &mut log_watcher,
-                    parser,
-                )
-                .await;
-            });
+                // Create our log watcher
+                let mut log_watcher = MuxedLines::new().unwrap();
+                log_watcher
+                    .add_file(&log_path)
+                    .await
+                    .expect("Unable to add the Minecraft log file to tail");
+
+                // Spawn a task to continuously tail the log file
+                tokio::spawn(async move {
+                    info!("Started watching the Minecraft log file");
+                    watch_log_file(
+                        Arc::clone(&ctx),
+                        Arc::clone(&cfg),
+                        Arc::clone(&guild_id),
+                        &mut log_watcher,
+                        parser,
+                    )
+                    .await;
+                });
+            }
         }
 
         self.is_watching.swap(true, Ordering::Relaxed);
@@ -333,7 +361,7 @@ fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
 async fn watch_log_file(
     ctx: Arc<Context>,
     cfg: Arc<RootConfig>,
-    guild_id: GuildId,
+    guild_id: Arc<GuildId>,
     log_watcher: &mut MuxedLines,
     parser: MessageParser,
 ) {
@@ -346,52 +374,80 @@ async fn watch_log_file(
             None => continue,
         };
 
-        // Get the correct name to use
-        let name = match message.source {
-            Source::Player => message.name.clone(),
-            Source::Server => ctx.cache.current_user().await.name,
-        };
-
-        let mut content = message.content.clone();
-        if cfg.mentions_allowed() {
-            content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
-        }
-
-        let message = MinecraftMessage {
-            name: name.clone(),
-            content,
-            source: message.source,
-        };
-
-        // Check if we should use a webhook to post the message
-        if cfg.webhook_enabled() {
-            let url = &cfg.webhook_url();
-
-            if let Err(e) = post_to_webhook(Arc::clone(&ctx), message, url).await {
-                error!("Error posting to webhook: {}", e);
-            }
-        } else {
-            // Send the message to the channel
-            let final_msg = match message.source {
-                Source::Player => format!("**{}**: {}", message.name, message.content),
-                Source::Server => message.content,
-            };
-
-            if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
-                error!("Error sending a message to Discord: {}", e);
-            }
+        if let Err(e) = send_to_discord(
+            Arc::clone(&ctx),
+            Arc::clone(&cfg),
+            Arc::clone(&guild_id),
+            message,
+        )
+        .await
+        {
+            error!(
+                "discord:handler: unable to send a message to Discord: {}",
+                e
+            );
         }
     }
+}
+
+async fn send_to_discord(
+    ctx: Arc<Context>,
+    cfg: Arc<RootConfig>,
+    guild_id: Arc<GuildId>,
+    message: MinecraftMessage,
+) -> Result<(), DolphinError> {
+    debug!(
+        "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
+        message
+    );
+
+    // Get the correct name to use
+    let name = match message.source {
+        Source::Player => message.name.clone(),
+        Source::Server => ctx.cache.current_user().await.name,
+    };
+
+    let mut content = message.content.clone();
+    if cfg.mentions_allowed() {
+        content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
+    }
+
+    let message = MinecraftMessage {
+        name: name.clone(),
+        content,
+        source: message.source,
+    };
+
+    // Check if we should use a webhook to post the message
+    if cfg.webhook_enabled() {
+        let url = &cfg.webhook_url();
+
+        if let Err(e) = post_to_webhook(Arc::clone(&ctx), message, url).await {
+            return Err(e);
+        }
+    } else {
+        // Send the message to the channel
+        let final_msg = match message.source {
+            Source::Player => format!("**{}**: {}", message.name, message.content),
+            Source::Server => message.content,
+        };
+
+        if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
+            return Err(DolphinError::Discord(e));
+        }
+    }
+
+    Ok(())
 }
 
 ///
 /// Looks for instances of user mentions in a message and attempts
 /// to replace that text with an actual Discord @mention.
 ///
-async fn replace_mentions(ctx: Arc<Context>, guild_id: GuildId, message: String) -> String {
+async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: String) -> String {
     let mut ret = message.clone();
 
-    if let Some(guild) = ctx.cache.guild(guild_id).await {
+    if let Some(guild) = ctx.cache.guild(*guild_id).await {
         // Try to match names using the full name and optionally
         // the user descriptor. This works for names that have
         // spaces in them, and really probably anything else.

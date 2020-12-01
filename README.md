@@ -44,6 +44,20 @@ Using a Discord webhook allows for much nicer messages to the Discord channel fr
 
 2. Copy the Webhook URL shown, and paste it in your Dolphin config, and enable using webhooks. Start Dolphin and that's it, you're done! :D
 
+### Listening for Remote Messages
+
+If you want to use this with a Minecraft server that is not on the same machine, you can enable the webserver listener in the config to listen for `POST` messages on the configured TCP port at the `/message` endpoint. For an easy way to send these messages, check out [dolphin-send](https://github.com/EbonJaeger/dolphin-send). If you wish to do this yourself, `dolphin-rs` expects the messages to have a body of content type `application/json` with this JSON schema:
+
+```json
+{
+  "name": "Username",
+  "content": "The message you want to send to the Discord channel.",
+  "source": "Player"
+}
+```
+
+`source` must be either `"Server"` or `"Player"`, and the name may be an empty string for non-player messages.
+
 ### Minecraft Message Template
 
 You can customize the message format for messages being sent to Minecraft (via the [tellraw command](https://minecraft.gamepedia.com/Commands/tellraw)). For a list of the various things you can use with the tellraw command, see [this wiki page](https://minecraft.gamepedia.com/Raw_JSON_text_format#Java_Edition). If you are unsure about what this does, the defaults match Vanilla Minecraft chat output.

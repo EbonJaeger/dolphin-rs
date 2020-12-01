@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 #[derive(Clone)]
 pub struct MessageParser {
     death_keywords: Vec<String>,
@@ -170,13 +172,13 @@ fn trim_prefix(line: &str) -> Option<&str> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum Source {
     Player,
     Server,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct MinecraftMessage {
     pub name: String,
     pub content: String,
