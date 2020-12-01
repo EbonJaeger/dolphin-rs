@@ -22,7 +22,7 @@ use std::{
         Arc,
     },
 };
-use tokio::stream::StreamExt;
+use tokio::{stream::StreamExt, sync::mpsc};
 use tracing::{debug, error, info, warn};
 
 const MAX_LINE_LENGTH: usize = 100;
@@ -267,10 +267,29 @@ impl EventHandler for Handler {
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
             if cfg.use_listener() {
+                let (tx, mut rx) = mpsc::channel(100);
+                let port = cfg.get_listener_port();
                 tokio::spawn(async move {
-                    let listener =
-                        Webserver::new(Arc::clone(&ctx), Arc::clone(&cfg), Arc::clone(&guild_id));
-                    listener.listen().await;
+                    let listener = Webserver::new(port);
+                    listener.listen(tx).await;
+                });
+
+                tokio::spawn(async move {
+                    while let Some(message) = rx.recv().await {
+                        if let Err(e) = send_to_discord(
+                            Arc::clone(&ctx),
+                            Arc::clone(&cfg),
+                            Arc::clone(&guild_id),
+                            message,
+                        )
+                        .await
+                        {
+                            error!(
+                                "discord:handler: unable to send a message to Discord: {}",
+                                e
+                            );
+                        }
+                    }
                 });
             } else {
                 info!("Using log file at '{}'", log_path);
@@ -355,13 +374,19 @@ async fn watch_log_file(
             None => continue,
         };
 
-        send_to_discord(
+        if let Err(e) = send_to_discord(
             Arc::clone(&ctx),
             Arc::clone(&cfg),
             Arc::clone(&guild_id),
             message,
         )
-        .await;
+        .await
+        {
+            error!(
+                "discord:handler: unable to send a message to Discord: {}",
+                e
+            );
+        }
     }
 }
 
@@ -371,6 +396,11 @@ pub async fn send_to_discord(
     guild_id: Arc<GuildId>,
     message: MinecraftMessage,
 ) -> Result<(), DolphinError> {
+    debug!(
+        "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
+        message
+    );
+
     // Get the correct name to use
     let name = match message.source {
         Source::Player => message.name.clone(),
