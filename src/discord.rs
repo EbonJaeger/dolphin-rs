@@ -1,8 +1,7 @@
 use crate::config::RootConfig;
 use crate::errors::DolphinError;
-use crate::listener::{Listener, Webserver};
-use crate::minecraft::{MessageParser, MinecraftMessage, Source};
-use linemux::MuxedLines;
+use crate::listener::{Listener, LogTailer, Webserver};
+use crate::minecraft::{MinecraftMessage, Source};
 use rcon::Connection;
 use regex::Regex;
 use serenity::{
@@ -22,7 +21,7 @@ use std::{
         Arc,
     },
 };
-use tokio::{stream::StreamExt, sync::mpsc};
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 const MAX_LINE_LENGTH: usize = 100;
@@ -266,56 +265,38 @@ impl EventHandler for Handler {
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
+            let (tx, mut rx) = mpsc::channel(100);
+
+            // Create our listener and start waiting for messages
             if cfg.enable_webserver() {
-                let (tx, mut rx) = mpsc::channel(100);
                 let port = cfg.get_webserver_port();
                 tokio::spawn(async move {
                     let listener = Webserver::new(port);
                     listener.listen(tx).await;
                 });
-
-                tokio::spawn(async move {
-                    while let Some(message) = rx.recv().await {
-                        if let Err(e) = send_to_discord(
-                            Arc::clone(&ctx),
-                            Arc::clone(&cfg),
-                            Arc::clone(&guild_id),
-                            message,
-                        )
-                        .await
-                        {
-                            error!(
-                                "discord:handler: unable to send a message to Discord: {}",
-                                e
-                            );
-                        }
-                    }
-                });
             } else {
-                info!("Using log file at '{}'", log_path);
+                let log_tailer = LogTailer::new(log_path.to_string(), cfg.get_death_keywords());
+                tokio::spawn(async move { log_tailer.listen(tx).await });
+            }
 
-                let parser = MessageParser::new(cfg.get_death_keywords());
-
-                // Create our log watcher
-                let mut log_watcher = MuxedLines::new().unwrap();
-                log_watcher
-                    .add_file(&log_path)
-                    .await
-                    .expect("Unable to add the Minecraft log file to tail");
-
-                // Spawn a task to continuously tail the log file
-                tokio::spawn(async move {
-                    info!("Started watching the Minecraft log file");
-                    watch_log_file(
+            // Spawn a task to wait for messages and send them to Discord
+            tokio::spawn(async move {
+                while let Some(message) = rx.recv().await {
+                    if let Err(e) = send_to_discord(
                         Arc::clone(&ctx),
                         Arc::clone(&cfg),
                         Arc::clone(&guild_id),
-                        &mut log_watcher,
-                        parser,
+                        message,
                     )
-                    .await;
-                });
-            }
+                    .await
+                    {
+                        error!(
+                            "discord:handler: unable to send a message to Discord: {}",
+                            e
+                        );
+                    }
+                }
+            });
         }
 
         self.is_watching.swap(true, Ordering::Relaxed);
@@ -354,42 +335,13 @@ fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
 }
 
 ///
-/// Watches the Minecraft log file and waits for new lines to be
-/// received. When a line is received, it will be parsed and sent
-/// to Discord if it's a type of message that we want to broadcast.
+/// Send a message from a Minecraft server to a configured Discord channel, either
+/// directly or via a webhook integration.
 ///
-async fn watch_log_file(
-    ctx: Arc<Context>,
-    cfg: Arc<RootConfig>,
-    guild_id: Arc<GuildId>,
-    log_watcher: &mut MuxedLines,
-    parser: MessageParser,
-) {
-    // Wait for the next line
-    while let Some(Ok(line)) = log_watcher.next().await {
-        // Turn it into our message struct if it matches something
-        // we care about.
-        let message = match parser.parse_line(line.line()) {
-            Some(message) => message,
-            None => continue,
-        };
-
-        if let Err(e) = send_to_discord(
-            Arc::clone(&ctx),
-            Arc::clone(&cfg),
-            Arc::clone(&guild_id),
-            message,
-        )
-        .await
-        {
-            error!(
-                "discord:handler: unable to send a message to Discord: {}",
-                e
-            );
-        }
-    }
-}
-
+/// # Errors
+///
+/// Returns a `serenity::Error` if a message is unable to be sent to the channel or the webhook.
+///
 async fn send_to_discord(
     ctx: Arc<Context>,
     cfg: Arc<RootConfig>,
