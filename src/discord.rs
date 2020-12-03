@@ -103,7 +103,7 @@ impl Handler {
         // the Discord API devs are braindead.
         let channel_ids: Vec<u64> = content
             .split_whitespace()
-            .filter_map(|w| parse_channel(w))
+            .filter_map(parse_channel)
             .collect();
 
         for id in channel_ids {
@@ -371,22 +371,26 @@ async fn send_to_discord(
 }
 
 ///
-/// Looks for instances of user mentions in a message and attempts
-/// to replace that text with an actual Discord @mention.
+/// Looks for instances of mentions in a message and attempts
+/// to replace that text with an actual Discord `@mention` (or
+/// `#channel` in the case of a channel).
+///
+/// It tries to match names using the full name and, in the
+/// case of users, optionally their  descriptor. This works
+/// for names that have spaces in them, and really probably
+/// anything else.
 ///
 async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: String) -> String {
     let mut ret = message.clone();
 
     if let Some(guild) = ctx.cache.guild(*guild_id).await {
-        // Try to match names using the full name and optionally
-        // the user descriptor. This works for names that have
-        // spaces in them, and really probably anything else.
         let mut found_start = false;
         let mut start = 0;
         let mut end = 0;
         let cloned = ret.clone();
+
         for (i, c) in cloned.char_indices() {
-            if c == '@' {
+            if c == '@' || c == '#' {
                 found_start = true;
                 start = i;
             } else if found_start && c == '#' {
@@ -400,16 +404,24 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
             // Check to see if we have a mention
             if found_start && end > 0 {
                 if let Some(mention) = cloned.get(start..end) {
-                    debug!(
-                        "discord:replace_mentions: Found a mention using char iteration: '{}'",
-                        mention
-                    );
                     let name = &mention[1..];
                     if let Some(member) = guild.member_named(name) {
                         ret = ret.replace(mention, &member.mention());
                         start = 0;
                         end = 0;
                         found_start = false;
+                    } else if let Some(role) = guild.role_by_name(name) {
+                        ret = ret.replace(mention, &role.mention());
+                        start = 0;
+                        end = 0;
+                        found_start = false;
+                    } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name).await {
+                        if let Some(channel) = ctx.cache.channel(id).await {
+                            ret = ret.replace(mention, &channel.mention());
+                            start = 0;
+                            end = 0;
+                            found_start = false;
+                        }
                     }
                 }
             }
