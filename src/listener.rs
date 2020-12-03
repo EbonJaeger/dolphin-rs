@@ -120,6 +120,7 @@ impl Listener for Webserver {
                 }
             });
 
-        warp::serve(messages).run(([127, 0, 0, 1], self.port)).await
+        // TODO: Maybe figure out how to bind to a configurable address?
+        warp::serve(messages).run(([0, 0, 0, 0], self.port)).await
     }
 }
