@@ -13,6 +13,7 @@ use serenity::{
         user::User,
     },
     prelude::*,
+    utils::parse_channel,
 };
 use std::{
     str::Split,
@@ -100,50 +101,27 @@ impl Handler {
 
         // We have to do all this nonsense for channel mentions because
         // the Discord API devs are braindead.
-        let chan_mentions: Vec<&str> = content
+        let channel_ids: Vec<u64> = content
             .split_whitespace()
-            .filter(|w| w.starts_with("<#"))
-            .filter(|w| w.ends_with('>'))
+            .filter_map(|w| parse_channel(w))
             .collect();
 
-        for chan_mention in chan_mentions {
-            let id = match chan_mention.get(2..chan_mention.len() - 1) {
-                Some(id) => match id.parse::<u64>() {
-                    Ok(num) => num,
-                    Err(e) => {
-                        debug!("handler:sanitize_message: Error parsing channel id: {}. This might not have been intended to be a channel mention", e);
-                        continue;
-                    }
-                },
-                None => continue,
-            };
-
-            let channel = match ctx.cache.guild_channel(id).await {
-                Some(channel) => channel,
-                None => {
-                    debug!(
-                        "handler:sanitize_message: Unable to find a channel for id '{}'",
-                        id
-                    );
-                    continue;
-                }
-            };
-
-            sanitized = sanitized.replace(chan_mention, format!("#{}", channel.name()).as_str());
+        for id in channel_ids {
+            if let Some(channel) = ctx.cache.guild_channel(id).await {
+                sanitized = sanitized.replace(
+                    format!("<#{}>", id).as_str(),
+                    format!("#{}", channel.name()).as_str(),
+                );
+            }
         }
 
         for role_id in &msg.mention_roles {
-            let role = match role_id.to_role_cached(&ctx.cache).await {
-                Some(role) => role,
-                None => {
-                    warn!("handler:sanitize_message: Role was mentioned but not found in the cache: {}", role_id);
-                    continue;
-                }
-            };
-            sanitized = sanitized.replace(
-                role_id.mention().as_str(),
-                format!("@{}", role.name).as_str(),
-            );
+            if let Some(role) = role_id.to_role_cached(&ctx.cache).await {
+                sanitized = sanitized.replace(
+                    role_id.mention().as_str(),
+                    format!("@{}", role.name).as_str(),
+                );
+            }
         }
 
         for user_mention in &msg.mentions {
