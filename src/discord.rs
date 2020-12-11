@@ -390,7 +390,7 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
         let cloned = ret.clone();
 
         for (i, c) in cloned.char_indices() {
-            if c == '@' || c == '#' {
+            if !found_start && (c == '@' || c == '#') {
                 found_start = true;
                 start = i;
             } else if found_start && c == '#' {
