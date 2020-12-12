@@ -11,29 +11,29 @@ use tokio::time::{delay_for, Duration};
 #[command]
 #[description = "List all online players on the Minecraft server."]
 pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResult {
-    let data = ctx.data.read().await;
+    let config = ctx
+        .data
+        .read()
+        .await
+        .get::<ConfigContainer>()
+        .cloned()
+        .expect("expected config container in TypeMap");
 
-    if let Some(config) = data.get::<ConfigContainer>() {
-        // Create RCON connection
-        let addr = config.get_rcon_addr();
+    // Create RCON connection
+    let addr = config.get_rcon_addr();
 
-        let mut conn = Connection::builder()
-            .enable_minecraft_quirks(true)
-            .connect(addr, config.get_rcon_password().as_str())
-            .await?;
+    let mut conn = Connection::builder()
+        .enable_minecraft_quirks(true)
+        .connect(addr, config.get_rcon_password().as_str())
+        .await?;
 
-        // Send the `list` command to the Minecraft server
-        let mut resp = conn.cmd("minecraft:list").await?;
-        if resp.starts_with("Unknown or incomplete command") {
-            resp = conn.cmd("list").await?;
-        }
-
-        send_reply(ctx, msg, resp).await?;
-    } else {
-        return Err(Box::from(DolphinError::Other(
-            "unable to read config from context",
-        )));
+    // Send the `list` command to the Minecraft server
+    let mut resp = conn.cmd("minecraft:list").await?;
+    if resp.starts_with("Unknown or incomplete command") {
+        resp = conn.cmd("list").await?;
     }
+
+    send_reply(ctx, msg, resp).await?;
 
     Ok(())
 }

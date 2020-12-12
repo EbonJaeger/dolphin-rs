@@ -31,7 +31,7 @@ impl TypeMapKey for ConfigContainer {
 
 #[group]
 #[description = "Commands to interact with the Minecraft server."]
-#[only_in("guild")]
+#[only_in("guilds")]
 #[commands(list)]
 struct Minecraft;
 
