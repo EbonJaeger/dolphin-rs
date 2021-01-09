@@ -123,6 +123,6 @@ Options:
 
 ## License
 
-Copyright &copy; 2020 Evan Maddock <maddock.evan@vivaldi.net>
+Copyright &copy; 2020-2021 Evan Maddock <maddock.evan@vivaldi.net>
 
 Dolphin-RS is available under the terms of the Apache 2.0 license.
