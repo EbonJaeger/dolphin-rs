@@ -1,6 +1,6 @@
 use serenity::{client::Context, model::prelude::Message, utils::Colour, Error};
 use std::fmt::Display;
-use tokio::time::{delay_for, Duration};
+use tokio::time::{sleep, Duration};
 
 ///
 /// Send an embed as a reply to a command if there was
@@ -33,7 +33,7 @@ where
         .await?;
 
     // Wait 30 seconds and delete the reply and the originating message
-    delay_for(Duration::new(30, 0)).await;
+    sleep(Duration::new(30, 0)).await;
     reply.delete(&ctx.http).await?;
     msg.delete(&ctx.http).await
 }

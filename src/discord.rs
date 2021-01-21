@@ -118,7 +118,7 @@ impl Handler {
         for role_id in &msg.mention_roles {
             if let Some(role) = role_id.to_role_cached(&ctx.cache).await {
                 sanitized = sanitized.replace(
-                    role_id.mention().as_str(),
+                    &role_id.mention().to_string(),
                     format!("@{}", role.name).as_str(),
                 );
             }
@@ -406,18 +406,18 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
                 if let Some(mention) = cloned.get(start..end) {
                     let name = &mention[1..];
                     if let Some(member) = guild.member_named(name) {
-                        ret = ret.replace(mention, &member.mention());
+                        ret = ret.replace(mention, &member.mention().to_string());
                         start = 0;
                         end = 0;
                         found_start = false;
                     } else if let Some(role) = guild.role_by_name(name) {
-                        ret = ret.replace(mention, &role.mention());
+                        ret = ret.replace(mention, &role.mention().to_string());
                         start = 0;
                         end = 0;
                         found_start = false;
                     } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name).await {
                         if let Some(channel) = ctx.cache.channel(id).await {
-                            ret = ret.replace(mention, &channel.mention());
+                            ret = ret.replace(mention, &channel.mention().to_string());
                             start = 0;
                             end = 0;
                             found_start = false;

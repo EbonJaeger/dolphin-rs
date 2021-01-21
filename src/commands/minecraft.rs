@@ -6,7 +6,7 @@ use serenity::{
     prelude::*,
     utils::Colour,
 };
-use tokio::time::{delay_for, Duration};
+use tokio::time::{sleep, Duration};
 
 #[command]
 #[description = "List all online players on the Minecraft server."]
@@ -68,7 +68,7 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<(), Do
             })
             .await?;
 
-        delay_for(Duration::new(30, 0)).await;
+        sleep(Duration::new(30, 0)).await;
         reply.delete(&ctx.http).await?;
         msg.delete(&ctx.http).await?;
     }

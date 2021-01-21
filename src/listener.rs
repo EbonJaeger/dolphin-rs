@@ -1,7 +1,8 @@
 use crate::minecraft::{MessageParser, MinecraftMessage};
 use linemux::MuxedLines;
 use serenity::async_trait;
-use tokio::{stream::StreamExt, sync::mpsc::Sender};
+use serenity::futures::StreamExt;
+use tokio::sync::mpsc::Sender;
 use tracing::{error, info};
 use warp::Filter;
 
@@ -60,7 +61,7 @@ impl Listener for LogTailer {
             .expect("Unable to add the Minecraft log file to tail");
 
         info!("log_tailer:listen: started watching the Minecraft log file");
-        let mut txc = tx.clone();
+        let txc = tx.clone();
 
         // Wait for the next line
         while let Some(Ok(line)) = log_watcher.next().await {
@@ -111,7 +112,7 @@ impl Listener for Webserver {
             .and(warp::body::content_length_limit(1024 * 16))
             .and(warp::body::json())
             .and_then(move |message: MinecraftMessage| {
-                let mut txc = tx.clone();
+                let txc = tx.clone();
                 async move {
                     match txc.send(message).await {
                         Ok(()) => Ok(""),

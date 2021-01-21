@@ -35,7 +35,7 @@ impl TypeMapKey for ConfigContainer {
 #[commands(list)]
 struct Minecraft;
 
-#[tokio::main()]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("dolphin")
         .about("Discord and Minecraft chat bridge (re-)written in Rust")
