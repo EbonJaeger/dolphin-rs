@@ -499,3 +499,63 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
 
     Some((id, captures.name("token").unwrap().as_str()))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::discord::split_webhook_url;
+    use crate::discord::truncate_lines;
+
+    #[test]
+    fn split_long_line() {
+        // Given
+        let input = String::from("01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
+        let split = input.split("\n");
+        let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "0123456789");
+
+        // When
+        let result = truncate_lines(split);
+
+        // Then
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn no_split_line() {
+        // Given
+        let input = String::from("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
+        let split = input.split("\n");
+        let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
+
+        // When
+        let result = truncate_lines(split);
+
+        // Then
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_parts_from_webhook_url() {
+        // Given
+        let input = String::from("https://discord.com/api/webhooks/12345/67890");
+
+        // When/Then
+        match split_webhook_url(&input) {
+            Some((id, token)) => {
+                assert_eq!(id, 12345);
+                assert_eq!(token, String::from("67890"));
+            }
+            None => panic!("failed to parse Discord webhook url"),
+        }
+    }
+
+    #[test]
+    fn parse_non_webhook_url() {
+        // Given
+        let input = String::from("https://example.com");
+
+        // When/Then
+        if let Some(_) = split_webhook_url(&input) {
+            panic!("webhook split returned something when it should have returned None");
+        }
+    }
+}
