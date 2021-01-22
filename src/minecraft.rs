@@ -205,9 +205,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse chat message"),
         }
     }
@@ -227,9 +225,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse non-vanilla chat message"),
         }
     }
@@ -247,9 +243,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse join message"),
         }
     }
@@ -267,9 +261,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse leave message"),
         }
     }
@@ -291,9 +283,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse advancement message"),
         }
     }
@@ -315,9 +305,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse challenge message"),
         }
     }
@@ -337,9 +325,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server started message"),
         }
     }
@@ -357,9 +343,7 @@ mod tests {
 
         // When/Then
         match parser.parse_line(&input) {
-            Some(msg) => {
-                assert_eq!(msg, expected);
-            }
+            Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server stopped message"),
         }
     }
