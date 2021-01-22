@@ -62,7 +62,8 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<(), Do
                     }
 
                     e
-                });
+                })
+                .reference_message(msg);
 
                 m
             })

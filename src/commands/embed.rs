@@ -29,6 +29,7 @@ where
                     .description(format!(":no_entry: {}", desc))
                     .footer(|f| f.text(reason))
             })
+            .reference_message(msg)
         })
         .await?;
 
