@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.2.0] - 2021-01-23
+
 ### Changed
 - Update dependencies
   - Tokio runtime updated to 1.0
@@ -51,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improve experience when a user sends an attachment in Discord
 
-[Unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.1.1...master
+[Unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.2.0...master
+[v2.2.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.1.1...v2.2.0
 [v2.1.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.1.0...v2.1.1
 [v2.1.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.0.1...v2.1.0
 [v2.0.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.0.0...v2.0.1
