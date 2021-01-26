@@ -77,9 +77,9 @@ fn parse_span(content: &str) -> Option<(Span, usize)> {
     pipe_opt!(
         content
         => parse_escape
-        => parse_strong
         => parse_emphasis
-        => parse_strikethrough
         => parse_underline
+        => parse_strong
+        => parse_strikethrough
     )
 }

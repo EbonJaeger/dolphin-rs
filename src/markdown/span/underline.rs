@@ -1,20 +1,28 @@
 use crate::markdown::span::parse_spans;
 use crate::markdown::Span;
 use crate::markdown::Span::Underline;
-use regex::Regex;
+use fancy_regex::Regex;
 
 /// Parses any underline markdown tags in the given text.
 pub fn parse_underline(text: &str) -> Option<(Span, usize)> {
     lazy_static! {
-        static ref EMPHASIS: Regex = Regex::new(r"^__(?P<text>.+?)__").unwrap();
+        static ref UNDERLINE: Regex = Regex::new(r"^__(?P<text>.+?)__(?!_)").unwrap();
     }
 
-    if EMPHASIS.is_match(text) {
-        let captures = EMPHASIS.captures(text).unwrap();
-        let t = captures.name("text").unwrap().as_str();
-        Some((Underline(parse_spans(t)), t.len() + 4))
-    } else {
-        None
+    match UNDERLINE.is_match(text) {
+        Ok(matches) => {
+            if matches {
+                let captures = UNDERLINE
+                    .captures(text)
+                    .expect("error running regex")
+                    .expect("no match found");
+                let t = captures.name("text").expect("no named capture").as_str();
+                Some((Underline(parse_spans(t)), t.len() + 4))
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
     }
 }
 

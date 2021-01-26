@@ -1,20 +1,31 @@
 use crate::markdown::span::parse_spans;
 use crate::markdown::Span;
 use crate::markdown::Span::Strong;
-use regex::Regex;
+use fancy_regex::Regex;
 
 /// Parses any strong (bold) markdown tags in the given text.
 pub fn parse_strong(text: &str) -> Option<(Span, usize)> {
     lazy_static! {
-        static ref STRONG: Regex = Regex::new(r"^\*\*(?P<text>.+?)\*\*").unwrap();
+        static ref STRONG: Regex = Regex::new(r"^\*\*(?P<text>.+?)\*\*(?!\*)").unwrap();
     }
 
-    if STRONG.is_match(text) {
-        let captures = STRONG.captures(text).unwrap();
-        let t = captures.name("text").unwrap().as_str();
-        Some((Strong(parse_spans(t)), t.len() + 4))
-    } else {
-        None
+    match STRONG.is_match(text) {
+        Ok(matches) => {
+            if matches {
+                let captures = STRONG
+                    .captures(text)
+                    .expect("error running regex")
+                    .expect("no match found");
+                let t = captures
+                    .name("text")
+                    .expect("no named capture found")
+                    .as_str();
+                Some((Strong(parse_spans(t)), t.len() + 4))
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
     }
 }
 

@@ -97,23 +97,85 @@ mod tests {
     }
 
     #[test]
-    fn handles_mixed_emphasis_and_strong() {
-        let input = "***test* test**";
+    fn handles_emphasis_inner_strong() {
+        let input = "*em **strong***";
         let md = parse(input);
-        assert_eq!(to_minecraft_format(&md), "§l§otest§r§l test§r");
+        assert_eq!(to_minecraft_format(&md), "§oem §lstrong§r§o§r");
     }
 
     #[test]
-    fn handles_mixed_underline_and_strikethrough() {
-        let input = "__test ~~test~~__";
+    fn handles_strong_inner_emphasis() {
+        let input = "**strong *em***";
         let md = parse(input);
-        assert_eq!(to_minecraft_format(&md), "§ntest §mtest§r§n§r");
+        assert_eq!(to_minecraft_format(&md), "§lstrong §oem§r§l§r");
     }
 
     #[test]
-    fn handles_mixed_strikethrough_and_underline() {
-        let input = "~~test __test__~~";
+    fn handles_strong_inner_emphasis2() {
+        let input = "***em* strong**";
         let md = parse(input);
-        assert_eq!(to_minecraft_format(&md), "§mtest §ntest§r§m§r");
+        println!("Blocks: {:?}", md);
+        assert_eq!(to_minecraft_format(&md), "§l§oem§r§l strong§r");
+    }
+
+    #[test]
+    fn handles_emphasis_inner_underline() {
+        let input = "___underline__ em_";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "§o§nunderline§r§o em§r");
+    }
+
+    #[test]
+    fn handles_emphasis_inner_underline2() {
+        let input = "_em __underline___";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "§oem §nunderline§r§o§r");
+    }
+
+    #[test]
+    fn handles_underline_inner_emphasis() {
+        let input = "__underline _em___";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "§nunderline §oem§r§n§r");
+    }
+
+    #[test]
+    fn handles_underline_inner_strikethrough() {
+        let input = "__underline ~~strikethrough~~__";
+        let md = parse(input);
+        assert_eq!(
+            to_minecraft_format(&md),
+            "§nunderline §mstrikethrough§r§n§r"
+        );
+    }
+
+    #[test]
+    fn handles_underline_inner_strikethrough2() {
+        let input = "__~~strikethrough~~ underline__";
+        let md = parse(input);
+        assert_eq!(
+            to_minecraft_format(&md),
+            "§n§mstrikethrough§r§n underline§r"
+        );
+    }
+
+    #[test]
+    fn handles_strikethrough_inner_underline() {
+        let input = "~~strikethrough __underline__~~";
+        let md = parse(input);
+        assert_eq!(
+            to_minecraft_format(&md),
+            "§mstrikethrough §nunderline§r§m§r"
+        );
+    }
+
+    #[test]
+    fn handles_strikethrough_inner_underline2() {
+        let input = "~~__underline__ strikethrough~~";
+        let md = parse(input);
+        assert_eq!(
+            to_minecraft_format(&md),
+            "§m§nunderline§r§m strikethrough§r"
+        );
     }
 }

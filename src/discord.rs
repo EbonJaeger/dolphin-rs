@@ -3,8 +3,8 @@ use crate::errors::DolphinError;
 use crate::listener::{Listener, LogTailer, Webserver};
 use crate::markdown;
 use crate::minecraft::{MinecraftMessage, Source};
+use fancy_regex::Regex;
 use rcon::Connection;
-use regex::Regex;
 use serenity::{
     async_trait,
     model::{
@@ -498,8 +498,11 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
     }
 
     let captures = match WEBHOOK_REGEX.captures(&url) {
-        Some(captures) => captures,
-        None => return None,
+        Ok(result) => match result {
+            Some(captures) => captures,
+            None => return None,
+        },
+        Err(_) => return None,
     };
 
     if captures.len() != 3 {
