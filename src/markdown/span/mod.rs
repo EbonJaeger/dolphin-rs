@@ -65,7 +65,9 @@ fn parse_escape(content: &str) -> Option<(Span, usize)> {
     let mut chars = content.chars();
     if let Some('\\') = chars.next() {
         return match chars.next() {
-            Some(x @ '\\') | Some(x @ '`') | Some(x @ '*') | Some(x @ '_') => Some((Literal(x), 2)),
+            Some(x @ '\\') | Some(x @ '`') | Some(x @ '*') | Some(x @ '_') | Some(x @ '~') => {
+                Some((Literal(x), 2))
+            }
             _ => None,
         };
     }

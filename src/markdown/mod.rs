@@ -178,4 +178,27 @@ mod tests {
             "§m§nunderline§r§m strikethrough§r"
         );
     }
+
+    #[test]
+    fn escapes_characters() {
+        let input = "\\*test\\*";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "*test*");
+
+        let input = "\\*\\*test\\*\\*";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "**test**");
+
+        let input = "\\_test\\_";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "_test_");
+
+        let input = "\\_\\_test\\_\\_";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "__test__");
+
+        let input = "\\~\\~test\\~\\~";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "~~test~~");
+    }
 }
