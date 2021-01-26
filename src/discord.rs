@@ -1,6 +1,7 @@
 use crate::config::RootConfig;
 use crate::errors::DolphinError;
 use crate::listener::{Listener, LogTailer, Webserver};
+use crate::markdown;
 use crate::minecraft::{MinecraftMessage, Source};
 use rcon::Connection;
 use regex::Regex;
@@ -191,7 +192,8 @@ impl EventHandler for Handler {
         let content = self.sanitize_message(&ctx, &msg).await;
 
         // Send a separate message for each line
-        let lines = content.split("\n");
+        let lines = content.split('\n');
+        let lines = parse_markdown(lines);
         let lines = truncate_lines(lines);
         let mut lines = self.apply_line_template(lines);
 
@@ -286,7 +288,7 @@ impl EventHandler for Handler {
 /// by default 100. If a line is over the limit, it will be split at that
 /// number of chacacters, and a new line inserted into the line Vector.
 ///
-fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
+fn truncate_lines(lines: Vec<String>) -> Vec<String> {
     let mut truncated: Vec<String> = Vec::new();
 
     for mut line in lines {
@@ -303,13 +305,26 @@ fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
 
             // Shorten the line for the next iteration
             line = match line.get(MAX_LINE_LENGTH..) {
-                Some(sub) => sub,
-                None => "",
+                Some(sub) => sub.to_string(),
+                None => String::new(),
             };
         }
     }
 
     truncated
+}
+
+/// Parses lines of text for Discord markdown so that it can be
+/// translated into Minecraft chat formatting.
+fn parse_markdown(lines: Split<'_, char>) -> Vec<String> {
+    let mut ret: Vec<String> = Vec::new();
+    for line in lines {
+        let blocks = markdown::parse(&line);
+        debug!("discord:parse_markdown: parsed plocks: {:?}", blocks);
+        ret.push(markdown::to_minecraft_format(&blocks));
+    }
+
+    ret
 }
 
 ///
@@ -508,12 +523,11 @@ mod tests {
     #[test]
     fn split_long_line() {
         // Given
-        let input = String::from("01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
-        let split = input.split("\n");
+        let input = vec!(String::from("01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"));
         let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "0123456789");
 
         // When
-        let result = truncate_lines(split);
+        let result = truncate_lines(input);
 
         // Then
         assert_eq!(result, expected);
@@ -522,12 +536,11 @@ mod tests {
     #[test]
     fn no_split_line() {
         // Given
-        let input = String::from("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
-        let split = input.split("\n");
+        let input = vec!(String::from("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"));
         let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
 
         // When
-        let result = truncate_lines(split);
+        let result = truncate_lines(input);
 
         // Then
         assert_eq!(result, expected);
