@@ -1,9 +1,10 @@
 use crate::config::RootConfig;
 use crate::errors::DolphinError;
 use crate::listener::{Listener, LogTailer, Webserver};
+use crate::markdown;
 use crate::minecraft::{MinecraftMessage, Source};
+use fancy_regex::Regex;
 use rcon::Connection;
-use regex::Regex;
 use serenity::{
     async_trait,
     model::{
@@ -15,12 +16,9 @@ use serenity::{
     prelude::*,
     utils::parse_channel,
 };
-use std::{
-    str::Split,
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
 };
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -191,8 +189,17 @@ impl EventHandler for Handler {
         let content = self.sanitize_message(&ctx, &msg).await;
 
         // Send a separate message for each line
-        let lines = content.split("\n");
-        let lines = truncate_lines(lines);
+        let lines = content.split('\n');
+
+        // Parse and convert any Markdown
+        let mut marked = Vec::new();
+        lines.for_each(|line| {
+            let blocks = markdown::parse(&line);
+            debug!("event_handler:message: parsed plocks: {:?}", blocks);
+            marked.push(markdown::to_minecraft_format(&blocks));
+        });
+
+        let lines = truncate_lines(marked);
         let mut lines = self.apply_line_template(lines);
 
         // Add attachement message if an attachment is present
@@ -286,7 +293,7 @@ impl EventHandler for Handler {
 /// by default 100. If a line is over the limit, it will be split at that
 /// number of chacacters, and a new line inserted into the line Vector.
 ///
-fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
+fn truncate_lines(lines: Vec<String>) -> Vec<String> {
     let mut truncated: Vec<String> = Vec::new();
 
     for mut line in lines {
@@ -303,8 +310,8 @@ fn truncate_lines<'a>(lines: Split<'a, &'a str>) -> Vec<String> {
 
             // Shorten the line for the next iteration
             line = match line.get(MAX_LINE_LENGTH..) {
-                Some(sub) => sub,
-                None => "",
+                Some(sub) => sub.to_string(),
+                None => String::new(),
             };
         }
     }
@@ -482,22 +489,20 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
             Regex::new(r"^https://discord.com/api/webhooks/(?P<id>.*)/(?P<token>.*)$").unwrap();
     }
 
-    let captures = match WEBHOOK_REGEX.captures(&url) {
-        Some(captures) => captures,
-        None => return None,
-    };
+    let mut ret = None;
 
-    if captures.len() != 3 {
-        return None;
+    if let Ok(Some(captures)) = WEBHOOK_REGEX.captures(&url) {
+        if captures.len() != 3 {
+            return None;
+        }
+
+        let id = captures.name("id").unwrap().as_str();
+        if let Ok(id) = id.parse::<u64>() {
+            ret = Some((id, captures.name("token").unwrap().as_str()));
+        }
     }
 
-    let id = captures.name("id").unwrap().as_str();
-    let id = match id.parse::<u64>() {
-        Ok(num) => num,
-        Err(_) => return None,
-    };
-
-    Some((id, captures.name("token").unwrap().as_str()))
+    ret
 }
 
 #[cfg(test)]
@@ -508,12 +513,11 @@ mod tests {
     #[test]
     fn split_long_line() {
         // Given
-        let input = String::from("01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
-        let split = input.split("\n");
+        let input = vec!(String::from("01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"));
         let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789", "0123456789");
 
         // When
-        let result = truncate_lines(split);
+        let result = truncate_lines(input);
 
         // Then
         assert_eq!(result, expected);
@@ -522,12 +526,11 @@ mod tests {
     #[test]
     fn no_split_line() {
         // Given
-        let input = String::from("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
-        let split = input.split("\n");
+        let input = vec!(String::from("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"));
         let expected = vec!("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789");
 
         // When
-        let result = truncate_lines(split);
+        let result = truncate_lines(input);
 
         // Then
         assert_eq!(result, expected);

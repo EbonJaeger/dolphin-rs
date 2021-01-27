@@ -3,12 +3,15 @@ mod config;
 mod discord;
 mod errors;
 mod listener;
+mod markdown;
 mod minecraft;
 
 #[macro_use]
 extern crate clap;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate pipeline;
 
 use clap::{App, Arg};
 use commands::{general::*, hooks::after, minecraft::*};
