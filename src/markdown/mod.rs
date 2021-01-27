@@ -1,6 +1,12 @@
 mod block;
 mod span;
 
+const EMPHASIS_TAG: &str = "§o";
+const RESET_TAG: &str = "§r";
+const STRIKETHROUGH_TAG: &str = "§m";
+const STRONG_TAG: &str = "§l";
+const UNDERLINE_TAG: &str = "§n";
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Block {
     Paragraph(Vec<Span>),
@@ -15,6 +21,57 @@ pub enum Span {
     Strong(Vec<Span>),
     Text(String),
     Underline(Vec<Span>),
+}
+
+impl Span {
+    /// Converts a single Span element (and any nested Spans, recursively)
+    /// to a String with the Minecraft format tags.
+    ///
+    /// Minecraft doesn't have real closing tags; you have to completely
+    /// reset the string and re-apply tags that should still be applied.
+    /// Thus, we need to keep track of any open tags with a `Vec<String>`.
+    fn to_minecraft(&self, mut open_tags: &mut Vec<String>) -> String {
+        match self {
+            Span::Literal(ref c) => c.to_string(),
+            Span::Text(ref content) => content.to_string(),
+            Span::Emphasis(ref content) => {
+                open_tags.push(EMPHASIS_TAG.to_owned());
+                format!(
+                    "{}{}{}",
+                    EMPHASIS_TAG,
+                    format_spans(content, &mut open_tags),
+                    RESET_TAG
+                )
+            }
+            Span::Strong(ref content) => {
+                open_tags.push(STRONG_TAG.to_owned());
+                format!(
+                    "{}{}{}",
+                    STRONG_TAG,
+                    format_spans(content, &mut open_tags),
+                    RESET_TAG
+                )
+            }
+            Span::Strikethrough(ref content) => {
+                open_tags.push(STRIKETHROUGH_TAG.to_owned());
+                format!(
+                    "{}{}{}",
+                    STRIKETHROUGH_TAG,
+                    format_spans(content, &mut open_tags),
+                    RESET_TAG
+                )
+            }
+            Span::Underline(ref content) => {
+                open_tags.push(UNDERLINE_TAG.to_owned());
+                format!(
+                    "{}{}{}",
+                    UNDERLINE_TAG,
+                    format_spans(content, &mut open_tags),
+                    RESET_TAG
+                )
+            }
+        }
+    }
 }
 
 /// Parse a string and turn it into a tree of Markdown elements.
@@ -46,36 +103,22 @@ fn format_paragraph(elements: &[Span]) -> String {
     format_spans(elements, &mut vec![])
 }
 
+/// Turn a Span tree to a String in the Minecraft chat format. This
+/// requires a `Vec<String>` to track any open tags for nested spans
+/// because of how formatting in Minecraft works.
+///
+/// Minecraft doesn't have real closing tags; you have to completely
+/// reset the string and re-apply tags that should still be applied.
 fn format_spans(elements: &[Span], mut open_tags: &mut Vec<String>) -> String {
     let mut ret = String::new();
 
     for element in elements.iter() {
-        let next = match *element {
-            Span::Literal(ref c) => c.to_string(),
-            Span::Text(ref content) => content.to_string(),
-            Span::Emphasis(ref content) => {
-                open_tags.push("§o".to_owned());
-                format!("§o{}§r", format_spans(content, &mut open_tags))
-            }
-            Span::Strong(ref content) => {
-                open_tags.push("§l".to_owned());
-                format!("§l{}§r", format_spans(content, &mut open_tags))
-            }
-            Span::Strikethrough(ref content) => {
-                open_tags.push("§m".to_owned());
-                format!("§m{}§r", format_spans(content, &mut open_tags))
-            }
-            Span::Underline(ref content) => {
-                open_tags.push("§n".to_owned());
-                format!("§n{}§r", format_spans(content, &mut open_tags))
-            }
-        };
-
         // Append the element to the final String
+        let next = element.to_minecraft(&mut open_tags);
         ret.push_str(&next);
 
         // Check if we need to add any open tags
-        if open_tags.len() > 0 && ret.ends_with("§r") {
+        if !open_tags.is_empty() && ret.ends_with(RESET_TAG) {
             open_tags.pop();
             ret.push_str(&open_tags.concat());
         }
@@ -94,6 +137,17 @@ mod tests {
         let input = "test";
         let md = parse(input);
         assert_eq!(to_minecraft_format(&md), "test");
+    }
+
+    #[test]
+    fn formats_blockquotes() {
+        let input = "> blockquote";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "> blockquote");
+
+        let input = "> *blockquote*";
+        let md = parse(input);
+        assert_eq!(to_minecraft_format(&md), "> §oblockquote§r");
     }
 
     #[test]

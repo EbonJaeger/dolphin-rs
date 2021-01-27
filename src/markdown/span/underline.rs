@@ -9,21 +9,14 @@ pub fn parse_underline(text: &str) -> Option<(Span, usize)> {
         static ref UNDERLINE: Regex = Regex::new(r"^__(?P<text>.+?)__(?!_)").unwrap();
     }
 
-    match UNDERLINE.is_match(text) {
-        Ok(matches) => {
-            if matches {
-                let captures = UNDERLINE
-                    .captures(text)
-                    .expect("error running regex")
-                    .expect("no match found");
-                let t = captures.name("text").expect("no named capture").as_str();
-                Some((Underline(parse_spans(t)), t.len() + 4))
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
+    let mut span = None;
+
+    if let Ok(Some(captures)) = UNDERLINE.captures(text) {
+        let t = captures.name("text").expect("no named capture").as_str();
+        span = Some((Underline(parse_spans(t)), t.len() + 4));
     }
+
+    span
 }
 
 #[cfg(test)]

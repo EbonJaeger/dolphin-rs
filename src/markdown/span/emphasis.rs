@@ -51,29 +51,22 @@ pub fn parse_emphasis(text: &str) -> Option<(Span, usize)> {
         static ref EMPHASIS: Regex = Regex::new(r"^\b_((?:__|\\[\s\S]|[^\\_])+?)_\b|^\*(?=\S)((?:\*\*|\\[\s\S]|\s+(?:\\[\s\S]|[^\s\*\\]|\*\*)|[^\s\*\\])+?)\*(?!\*)").unwrap();
     }
 
-    match EMPHASIS.is_match(text) {
-        Ok(matches) => {
-            if matches {
-                let captures = EMPHASIS
-                    .captures(text)
-                    .expect("error running regex")
-                    .expect("no match found");
+    let mut span = None;
+    if let Ok(Some(captures)) = EMPHASIS.captures(text) {
+        // Look for one form of emphasis tag, then look for the other if
+        // that isn't found.
+        let t = match captures.get(2) {
+            Some(m) => m.as_str(),
+            None => match captures.get(1) {
+                Some(m) => m.as_str(),
+                None => panic!("emphasis regex found matches, but couldn't get capture groups"),
+            },
+        };
 
-                let t = match captures.get(2) {
-                    Some(m) => m.as_str(),
-                    None => match captures.get(1) {
-                        Some(m) => m.as_str(),
-                        None => panic!(),
-                    },
-                };
-
-                Some((Emphasis(parse_spans(t)), t.len() + 2))
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
+        span = Some((Emphasis(parse_spans(t)), t.len() + 2));
     }
+
+    span
 }
 
 #[cfg(test)]

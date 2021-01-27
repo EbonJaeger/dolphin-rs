@@ -9,21 +9,13 @@ pub fn parse_strikethrough(text: &str) -> Option<(Span, usize)> {
         static ref STRIKETHROUGH: Regex = Regex::new(r"^~~(?P<text>.+?)~~").unwrap();
     }
 
-    match STRIKETHROUGH.is_match(text) {
-        Ok(matches) => {
-            if matches {
-                let captures = STRIKETHROUGH
-                    .captures(text)
-                    .expect("error running regex")
-                    .expect("no match found");
-                let t = captures.name("text").expect("no named capture").as_str();
-                Some((Strikethrough(parse_spans(t)), t.len() + 4))
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
+    let mut span = None;
+    if let Ok(Some(captures)) = STRIKETHROUGH.captures(text) {
+        let t = captures.name("text").expect("no named capture").as_str();
+        span = Some((Strikethrough(parse_spans(t)), t.len() + 4));
     }
+
+    span
 }
 
 #[cfg(test)]

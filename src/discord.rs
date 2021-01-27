@@ -16,12 +16,9 @@ use serenity::{
     prelude::*,
     utils::parse_channel,
 };
-use std::{
-    str::Split,
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
 };
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -193,8 +190,16 @@ impl EventHandler for Handler {
 
         // Send a separate message for each line
         let lines = content.split('\n');
-        let lines = parse_markdown(lines);
-        let lines = truncate_lines(lines);
+
+        // Parse and convert any Markdown
+        let mut marked = Vec::new();
+        lines.for_each(|line| {
+            let blocks = markdown::parse(&line);
+            debug!("event_handler:message: parsed plocks: {:?}", blocks);
+            marked.push(markdown::to_minecraft_format(&blocks));
+        });
+
+        let lines = truncate_lines(marked);
         let mut lines = self.apply_line_template(lines);
 
         // Add attachement message if an attachment is present
@@ -312,19 +317,6 @@ fn truncate_lines(lines: Vec<String>) -> Vec<String> {
     }
 
     truncated
-}
-
-/// Parses lines of text for Discord markdown so that it can be
-/// translated into Minecraft chat formatting.
-fn parse_markdown(lines: Split<'_, char>) -> Vec<String> {
-    let mut ret: Vec<String> = Vec::new();
-    for line in lines {
-        let blocks = markdown::parse(&line);
-        debug!("discord:parse_markdown: parsed plocks: {:?}", blocks);
-        ret.push(markdown::to_minecraft_format(&blocks));
-    }
-
-    ret
 }
 
 ///
@@ -497,25 +489,23 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
             Regex::new(r"^https://discord.com/api/webhooks/(?P<id>.*)/(?P<token>.*)$").unwrap();
     }
 
-    let captures = match WEBHOOK_REGEX.captures(&url) {
-        Ok(result) => match result {
-            Some(captures) => captures,
-            None => return None,
-        },
-        Err(_) => return None,
-    };
+    let mut ret = None;
 
-    if captures.len() != 3 {
-        return None;
+    if let Ok(Some(captures)) = WEBHOOK_REGEX.captures(&url) {
+        if captures.len() != 3 {
+            return None;
+        }
+
+        let id = captures.name("id").unwrap().as_str();
+        let id = match id.parse::<u64>() {
+            Ok(num) => num,
+            Err(_) => return None,
+        };
+
+        ret = Some((id, captures.name("token").unwrap().as_str()))
     }
 
-    let id = captures.name("id").unwrap().as_str();
-    let id = match id.parse::<u64>() {
-        Ok(num) => num,
-        Err(_) => return None,
-    };
-
-    Some((id, captures.name("token").unwrap().as_str()))
+    ret
 }
 
 #[cfg(test)]

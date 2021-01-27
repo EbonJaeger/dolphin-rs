@@ -9,24 +9,13 @@ pub fn parse_strong(text: &str) -> Option<(Span, usize)> {
         static ref STRONG: Regex = Regex::new(r"^\*\*(?P<text>.+?)\*\*(?!\*)").unwrap();
     }
 
-    match STRONG.is_match(text) {
-        Ok(matches) => {
-            if matches {
-                let captures = STRONG
-                    .captures(text)
-                    .expect("error running regex")
-                    .expect("no match found");
-                let t = captures
-                    .name("text")
-                    .expect("no named capture found")
-                    .as_str();
-                Some((Strong(parse_spans(t)), t.len() + 4))
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
+    let mut span = None;
+    if let Ok(Some(captures)) = STRONG.captures(text) {
+        let t = captures.name("text").expect("no named capture").as_str();
+        span = Some((Strong(parse_spans(t)), t.len() + 4));
     }
+
+    span
 }
 
 #[cfg(test)]
