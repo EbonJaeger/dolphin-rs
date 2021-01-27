@@ -497,12 +497,9 @@ fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
         }
 
         let id = captures.name("id").unwrap().as_str();
-        let id = match id.parse::<u64>() {
-            Ok(num) => num,
-            Err(_) => return None,
-        };
-
-        ret = Some((id, captures.name("token").unwrap().as_str()))
+        if let Ok(id) = id.parse::<u64>() {
+            ret = Some((id, captures.name("token").unwrap().as_str()));
+        }
     }
 
     ret

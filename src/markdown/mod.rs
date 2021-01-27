@@ -36,39 +36,23 @@ impl Span {
             Span::Text(ref content) => content.to_string(),
             Span::Emphasis(ref content) => {
                 open_tags.push(EMPHASIS_TAG.to_owned());
-                format!(
-                    "{}{}{}",
-                    EMPHASIS_TAG,
-                    format_spans(content, &mut open_tags),
-                    RESET_TAG
-                )
+                let span = format_spans(content, &mut open_tags);
+                format!("{}{}{}", EMPHASIS_TAG, span, RESET_TAG)
             }
             Span::Strong(ref content) => {
                 open_tags.push(STRONG_TAG.to_owned());
-                format!(
-                    "{}{}{}",
-                    STRONG_TAG,
-                    format_spans(content, &mut open_tags),
-                    RESET_TAG
-                )
+                let span = format_spans(content, &mut open_tags);
+                format!("{}{}{}", STRONG_TAG, span, RESET_TAG)
             }
             Span::Strikethrough(ref content) => {
                 open_tags.push(STRIKETHROUGH_TAG.to_owned());
-                format!(
-                    "{}{}{}",
-                    STRIKETHROUGH_TAG,
-                    format_spans(content, &mut open_tags),
-                    RESET_TAG
-                )
+                let span = format_spans(content, &mut open_tags);
+                format!("{}{}{}", STRIKETHROUGH_TAG, span, RESET_TAG)
             }
             Span::Underline(ref content) => {
                 open_tags.push(UNDERLINE_TAG.to_owned());
-                format!(
-                    "{}{}{}",
-                    UNDERLINE_TAG,
-                    format_spans(content, &mut open_tags),
-                    RESET_TAG
-                )
+                let span = format_spans(content, &mut open_tags);
+                format!("{}{}{}", UNDERLINE_TAG, span, RESET_TAG)
             }
         }
     }
