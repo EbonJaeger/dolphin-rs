@@ -44,40 +44,40 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<(), Do
     let count_line = parts.next().unwrap();
     let player_list = parts.next().unwrap();
 
-    if let Some((online, max)) = get_player_counts(count_line) {
-        // Create and send the embed
-        let reply = msg
-            .channel_id
-            .send_message(&ctx.http, |m| {
-                m.embed(|e| {
-                    e.title("Online Players")
-                        .description(format!(
-                            "There are **{}** out of **{}** players online.",
-                            online, max
-                        ))
-                        .color(Colour::BLUE);
+    let (online, max) = get_player_counts(count_line);
 
-                    if !player_list.is_empty() {
-                        e.footer(|f| f.text(player_list));
-                    }
+    // Create and send the embed
+    let reply = msg
+        .channel_id
+        .send_message(&ctx.http, |m| {
+            m.embed(|e| {
+                e.title("Online Players")
+                    .description(format!(
+                        "There are **{}** out of **{}** players online.",
+                        online, max
+                    ))
+                    .color(Colour::BLUE);
 
-                    e
-                })
-                .reference_message(msg);
+                if !player_list.is_empty() {
+                    e.footer(|f| f.text(player_list));
+                }
 
-                m
+                e
             })
-            .await?;
+            .reference_message(msg);
 
-        sleep(Duration::new(30, 0)).await;
-        reply.delete(&ctx.http).await?;
-        msg.delete(&ctx.http).await?;
-    }
+            m
+        })
+        .await?;
+
+    sleep(Duration::new(30, 0)).await;
+    reply.delete(&ctx.http).await?;
+    msg.delete(&ctx.http).await?;
 
     Ok(())
 }
 
-fn get_player_counts(text: &str) -> Option<(i32, i32)> {
+fn get_player_counts(text: &str) -> (i32, i32) {
     let parts = text.split_whitespace();
     let mut got_online = false;
     let mut online = -1;
@@ -97,5 +97,5 @@ fn get_player_counts(text: &str) -> Option<(i32, i32)> {
         }
     }
 
-    Some((online, max))
+    (online, max)
 }

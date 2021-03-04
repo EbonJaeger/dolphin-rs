@@ -15,7 +15,7 @@ pub async fn after(ctx: &Context, msg: &Message, command_name: &str, result: Com
         ),
         Err(e) => {
             error!("Error performing the '{}' command: {}", command_name, e);
-            match send_error_embed(
+            if let Err(e) = send_error_embed(
                 ctx,
                 msg,
                 format!("Error performing `{}` command!", command_name).as_str(),
@@ -23,8 +23,7 @@ pub async fn after(ctx: &Context, msg: &Message, command_name: &str, result: Com
             )
             .await
             {
-                Err(e) => error!("Error replying with a command error: {:?}", e),
-                _ => return,
+                error!("Error replying with a command error: {:?}", e);
             };
         }
     }
