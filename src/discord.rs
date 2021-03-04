@@ -1,5 +1,5 @@
 use crate::config::RootConfig;
-use crate::errors::DolphinError;
+use crate::errors::Error;
 use crate::listener::{Listener, LogTailer, Webserver};
 use crate::markdown;
 use crate::minecraft::{MinecraftMessage, Source};
@@ -146,7 +146,7 @@ impl Handler {
         ctx: &Context,
         content: &str,
         msg: &Message,
-    ) -> Result<(), DolphinError> {
+    ) -> Result<(), Error> {
         let command = self.build_tellraw_command(author, ctx, content, msg).await;
         debug!("send_to_minecraft: {}", command);
 
@@ -161,7 +161,7 @@ impl Handler {
         // Send the command to Minecraft
         match conn.cmd(command.as_str()).await {
             Ok(_) => Ok(()),
-            Err(e) => Err(DolphinError::Rcon(e)),
+            Err(e) => Err(Error::Rcon(e)),
         }
     }
 }
@@ -332,7 +332,7 @@ async fn send_to_discord(
     cfg: Arc<RootConfig>,
     guild_id: Arc<GuildId>,
     message: MinecraftMessage,
-) -> Result<(), DolphinError> {
+) -> Result<(), Error> {
     debug!(
         "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
         message
@@ -370,7 +370,7 @@ async fn send_to_discord(
         };
 
         if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
-            return Err(DolphinError::Discord(e));
+            return Err(Error::Discord(e));
         }
     }
 
@@ -447,11 +447,11 @@ async fn post_to_webhook(
     ctx: Arc<Context>,
     message: MinecraftMessage,
     url: &str,
-) -> Result<(), DolphinError> {
+) -> Result<(), Error> {
     // Split the url into the webhook id an token
     let parts = match split_webhook_url(url) {
         Some(parts) => parts,
-        None => return Err(DolphinError::Other("invalid webhook url")),
+        None => return Err(Error::Other("invalid webhook url")),
     };
 
     // Get the webhook using the id and token
@@ -473,7 +473,7 @@ async fn post_to_webhook(
         })
         .await
     {
-        return Err(DolphinError::Discord(e));
+        return Err(Error::Discord(e));
     }
 
     Ok(())

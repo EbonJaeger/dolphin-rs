@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Rewrote error enum and wrapping, allowing us to drop `err_derive` as a dependency
 - Update dependencies
 
 ## [v2.3.0] - 2021-01-27

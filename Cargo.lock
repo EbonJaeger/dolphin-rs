@@ -329,7 +329,6 @@ version = "2.3.0"
 dependencies = [
  "clap",
  "confy",
- "err-derive",
  "fancy-regex",
  "lazy_static",
  "linemux",
