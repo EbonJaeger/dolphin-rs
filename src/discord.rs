@@ -11,7 +11,6 @@ use serenity::{
         channel::Message,
         gateway::{Activity, Ready},
         id::{ChannelId, GuildId},
-        user::User,
     },
     prelude::*,
     utils::parse_channel,
@@ -39,131 +38,6 @@ impl Handler {
             is_watching: AtomicBool::new(false),
         }
     }
-
-    ///
-    /// Put each given line into a JSON structure to be passed to the
-    /// Minecraft tellraw command.
-    ///
-    fn apply_line_template(&self, lines: Vec<String>) -> Vec<String> {
-        let mut formatted_lines: Vec<String> = Vec::new();
-
-        for line in lines {
-            let formatted = self.cfg.get_message_template();
-            let formatted = formatted.replace("%content%", line.as_str());
-            formatted_lines.push(formatted);
-        }
-
-        formatted_lines
-    }
-
-    ///
-    /// Create the tellraw command string from the configured template.
-    /// This will insert values into the various supported placeholders,
-    /// returning the final result.
-    ///
-    async fn build_tellraw_command(
-        &self,
-        author: &User,
-        ctx: &Context,
-        content: &str,
-        msg: &Message,
-    ) -> String {
-        let command = format!(
-            "tellraw @a [{}, {}]",
-            self.cfg.get_username_template(),
-            content
-        );
-
-        // Get the sender's name to send to Minecraft
-        let name = if self.cfg.use_member_nicks() {
-            author
-                .nick_in(&ctx, msg.guild_id.unwrap())
-                .await
-                .unwrap_or_else(|| author.name.clone())
-        } else {
-            author.name.clone()
-        };
-
-        // Fill in our placeholders
-        let command = command.replace("%username%", &name);
-        command.replace("%mention%", format!("@{}", &author.tag()).as_str())
-    }
-
-    ///
-    /// Performs some string replacements for mentions and escapes quotes on
-    /// messages that are to be sent to the Minecraft server.
-    ///
-    async fn sanitize_message(&self, ctx: &Context, msg: &Message) -> String {
-        let content = msg.content.clone();
-        let mut sanitized = msg.content.clone();
-
-        // We have to do all this nonsense for channel mentions because
-        // the Discord API devs are braindead.
-        let channel_ids: Vec<u64> = content
-            .split_whitespace()
-            .filter_map(parse_channel)
-            .collect();
-
-        for id in channel_ids {
-            if let Some(channel) = ctx.cache.guild_channel(id).await {
-                sanitized = sanitized.replace(
-                    format!("<#{}>", id).as_str(),
-                    format!("#{}", channel.name()).as_str(),
-                );
-            }
-        }
-
-        for role_id in &msg.mention_roles {
-            if let Some(role) = role_id.to_role_cached(&ctx.cache).await {
-                sanitized = sanitized.replace(
-                    &role_id.mention().to_string(),
-                    format!("@{}", role.name).as_str(),
-                );
-            }
-        }
-
-        for user_mention in &msg.mentions {
-            sanitized = sanitized.replace(
-                format!("<@!{}>", user_mention.id).as_str(),
-                format!("@{}", user_mention.name).as_str(),
-            );
-        }
-
-        // Escape double quotes
-        sanitized.replace("\"", "\\\"")
-    }
-
-    ///
-    /// Send a tellraw message to the Minecraft server via RCON. Content
-    /// should be a valid JSON Object that the game can parse and display.
-    ///
-    /// If there is an error connecting to RCON or sending the message, the
-    /// error will be returned.
-    ///
-    async fn send_to_minecraft(
-        &self,
-        author: &User,
-        ctx: &Context,
-        content: &str,
-        msg: &Message,
-    ) -> Result<(), Error> {
-        let command = self.build_tellraw_command(author, ctx, content, msg).await;
-        debug!("send_to_minecraft: {}", command);
-
-        // Create RCON connection
-        let addr = self.cfg.get_rcon_addr();
-
-        let mut conn = Connection::builder()
-            .enable_minecraft_quirks(true)
-            .connect(addr, self.cfg.get_rcon_password().as_str())
-            .await?;
-
-        // Send the command to Minecraft
-        match conn.cmd(command.as_str()).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(Error::Rcon(e)),
-        }
-    }
 }
 
 #[async_trait]
@@ -186,7 +60,7 @@ impl EventHandler for Handler {
         }
 
         debug!("event_handler:message: received a message from Discord");
-        let content = self.sanitize_message(&ctx, &msg).await;
+        let content = sanitize_message(&ctx, &msg).await;
 
         // Send a separate message for each line
         let lines = content.split('\n');
@@ -200,7 +74,7 @@ impl EventHandler for Handler {
         });
 
         let lines = truncate_lines(marked);
-        let mut lines = self.apply_line_template(lines);
+        let mut lines = apply_line_template(self.cfg.get_message_template(), lines);
 
         // Add attachement message if an attachment is present
         if !msg.attachments.is_empty() {
@@ -210,14 +84,32 @@ impl EventHandler for Handler {
             lines.push(line);
         }
 
+        // Get the name to use for these messages
+        let name = if self.cfg.use_member_nicks() {
+            msg.author
+                .nick_in(&ctx, msg.guild_id.unwrap())
+                .await
+                .unwrap_or_else(|| msg.author.name.clone())
+        } else {
+            msg.author.name.clone()
+        };
+
         // Send each line to Minecraft
-        for (index, line) in lines.iter().enumerate() {
-            debug!(
-                "event_handler:message: sending a chat message to Minecraft: part {}/{}",
-                index + 1,
-                lines.len()
+        for line in lines {
+            let command = build_tellraw_command(
+                name.clone(),
+                &msg.author.tag(),
+                &self.cfg.get_username_template(),
+                &line,
             );
-            if let Err(e) = self.send_to_minecraft(&msg.author, &ctx, &line, &msg).await {
+
+            if let Err(e) = send_to_minecraft(
+                command,
+                self.cfg.get_rcon_addr(),
+                self.cfg.get_rcon_password(),
+            )
+            .await
+            {
                 error!("Error sending a chat message to Minecraft: {}", e);
             }
         }
@@ -285,6 +177,118 @@ impl EventHandler for Handler {
         }
 
         self.is_watching.swap(true, Ordering::Relaxed);
+    }
+}
+
+///
+/// Put each given line into a JSON structure to be passed to the
+/// Minecraft tellraw command.
+///
+fn apply_line_template(template: String, lines: Vec<String>) -> Vec<String> {
+    let mut formatted_lines: Vec<String> = Vec::new();
+
+    for line in lines {
+        let formatted = template.replace("%content%", line.as_str());
+        formatted_lines.push(formatted);
+    }
+
+    formatted_lines
+}
+
+///
+/// Create the tellraw command string from the configured template.
+/// This will insert values into the various supported placeholders,
+/// returning the final result.
+///
+fn build_tellraw_command(
+    name: String,
+    mention: &str,
+    username_template: &str,
+    content: &str,
+) -> String {
+    let command = format!("tellraw @a [{}, {}]", username_template, content);
+
+    // Fill in our placeholders
+    let command = command.replace("%username%", &name);
+    command.replace("%mention%", format!("@{}", mention).as_str())
+}
+
+///
+/// Performs some string replacements for mentions and escapes quotes on
+/// messages that are to be sent to the Minecraft server.
+///
+async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
+    let content = msg.content.clone();
+    let mut sanitized = msg.content.clone();
+
+    // We have to do all this nonsense for channel mentions because
+    // the Discord API devs are braindead.
+    let channel_ids: Vec<u64> = content
+        .split_whitespace()
+        .filter_map(parse_channel)
+        .collect();
+
+    for id in channel_ids {
+        if let Some(channel) = ctx.cache.guild_channel(id).await {
+            sanitized = sanitized.replace(
+                format!("<#{}>", id).as_str(),
+                format!("#{}", channel.name()).as_str(),
+            );
+        }
+    }
+
+    for role_id in &msg.mention_roles {
+        if let Some(role) = role_id.to_role_cached(&ctx.cache).await {
+            sanitized = sanitized.replace(
+                &role_id.mention().to_string(),
+                format!("@{}", role.name).as_str(),
+            );
+        }
+    }
+
+    for user_mention in &msg.mentions {
+        sanitized = sanitized.replace(
+            format!("<@!{}>", user_mention.id).as_str(),
+            format!("@{}", user_mention.name).as_str(),
+        );
+    }
+
+    // Escape double quotes
+    sanitized.replace("\"", "\\\"")
+}
+
+/// Send a tellraw message to the Minecraft server via RCON. Content
+/// should be a valid JSON Object that the game can parse and display.
+///
+/// If there is an error connecting to RCON or sending the message, the
+/// error will be returned.
+///
+/// # Examples
+///
+/// ```rust
+/// let command = "say Hello, world!";
+/// let rcon_addr = "localhost:25575";
+/// let rcon_password = "hunter2";
+///
+/// send_to_minecraft(command, rcon_addr, rcon_password).await?
+/// ```
+async fn send_to_minecraft(
+    command: String,
+    rcon_addr: String,
+    rcon_password: String,
+) -> Result<(), Error> {
+    debug!("send_to_minecraft: {}", command);
+
+    // Create RCON connection
+    let mut conn = Connection::builder()
+        .enable_minecraft_quirks(true)
+        .connect(rcon_addr, &rcon_password)
+        .await?;
+
+    // Send the command to Minecraft
+    match conn.cmd(&command).await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(Error::Rcon(e)),
     }
 }
 
