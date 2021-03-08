@@ -418,22 +418,20 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
                     let name = &mention[1..];
                     if let Some(member) = guild.member_named(name) {
                         ret = ret.replace(mention, &member.mention().to_string());
-                        start = 0;
-                        end = 0;
-                        found_start = false;
                     } else if let Some(role) = guild.role_by_name(name) {
                         ret = ret.replace(mention, &role.mention().to_string());
-                        start = 0;
-                        end = 0;
-                        found_start = false;
                     } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name).await {
                         if let Some(channel) = ctx.cache.channel(id).await {
                             ret = ret.replace(mention, &channel.mention().to_string());
-                            start = 0;
-                            end = 0;
-                            found_start = false;
                         }
+                    } else {
+                        continue;
                     }
+
+                    // If we got here, we found a mention, so reset everything
+                    start = 0;
+                    end = 0;
+                    found_start = false;
                 }
             }
         }
