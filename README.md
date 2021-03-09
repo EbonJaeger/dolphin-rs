@@ -38,7 +38,11 @@ Place the downloaded or built binary where ever you want, and run it to generate
 
 ### Using Discord Webhooks
 
-Using a Discord webhook allows for much nicer messages to the Discord channel from Minecraft, such as using a different avatar for each Minecraft user and each message using their name. Setting it up is easy:
+Using a Discord webhook allows for much nicer messages to the Discord channel from Minecraft, such as using a different avatar for each Minecraft user and each message using their name. 
+
+Minecraft avatars are provided via the [Crafatar API](https://crafatar.com).
+
+Setting it up is easy:
 
 1. In Discord, go to your server settings, go to Webhooks, and create a new webhook for the channel you wish to use.
 
@@ -52,7 +56,8 @@ If you want to use this with a Minecraft server that is not on the same machine,
 {
   "name": "Username",
   "content": "The message you want to send to the Discord channel.",
-  "source": "Player"
+  "source": "Player",
+  "uuid": "Mojang UUID for fetching avatars"
 }
 ```
 

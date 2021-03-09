@@ -49,7 +49,7 @@ impl LogTailer {
 impl Listener for LogTailer {
     async fn listen(&self, ctx: Arc<Context>, cfg: Arc<RootConfig>, guild_id: Arc<GuildId>) {
         info!("log_tailer:listen: using log file at '{}'", self.path);
-        let parser = MessageParser::new(self.custom_keywords.clone());
+        let mut parser = MessageParser::new(self.custom_keywords.clone());
 
         // Create our log watcher
         let mut log_watcher = MuxedLines::new().unwrap();
@@ -154,7 +154,10 @@ async fn post_to_webhook(
 
     // Get the avatar URL
     let avatar_url = match message.source {
-        Source::Player => format!("https://minotar.net/helm/{}/256.png", message.name.clone()),
+        Source::Player => format!(
+            "https://crafatar.com/avatars/{}?size=256",
+            message.uuid.clone()
+        ),
         // TODO: Do something better than a blind unwrap() here
         Source::Server => ctx.cache.current_user().await.avatar_url().unwrap(),
     };
@@ -265,6 +268,7 @@ async fn send_to_discord(
         name: name.clone(),
         content,
         source: message.source,
+        uuid: message.uuid,
     };
 
     // Check if we should use a webhook to post the message

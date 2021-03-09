@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use Crafatar for webhook avatar URLs instead of Minotar
+- Simplify trimming log prefixes from messages
 - Rewrote error enum and wrapping, allowing us to drop `err_derive` as a dependency
 - Update dependencies
 
