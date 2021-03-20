@@ -40,22 +40,13 @@ impl TypeMapKey for ConfigPathContainer {
 
 #[group]
 #[description = "Administrative commands for the bot."]
-#[only_in("guilds")]
-#[commands(
-    config,
-    config_channel,
-    config_mentions,
-    config_nicks,
-    config_rcon_addr,
-    config_rcon_port,
-    config_rcon_pass,
-    config_log_path
-)]
+#[only_in(guilds)]
+#[commands(config)]
 struct Admin;
 
 #[group]
 #[description = "Commands to interact with the Minecraft server."]
-#[only_in("guilds")]
+#[only_in(guilds)]
 #[commands(list)]
 struct Minecraft;
 

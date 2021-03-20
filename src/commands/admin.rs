@@ -14,26 +14,32 @@ use crate::{config::RootConfig, ConfigContainer, ConfigPathContainer};
 use super::embed::send_error_embed;
 
 #[command]
-#[sub_commands(
-    config_channel,
-    config_mentions,
-    config_nicks,
-    config_rcon_addr,
-    config_rcon_port,
-    config_rcon_pass,
-    config_log_path
-)]
+#[sub_commands(channel, mentions, nicks, rconaddr, rconport, rconpass, log)]
 #[required_permissions("ADMINISTRATOR")]
 pub async fn config(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
-    // Wait 30 seconds and delete the command
+    let reply = msg.channel_id.send_message(&ctx, |m| {
+        m.embed(|e| {
+            e.title("Configuration")
+            .description("You can use commands to change various configuration options for Dolphin. For more information about these commands, type `!help config`")
+            .color(Colour::BLUE);
+
+            e
+        })
+        .reference_message(msg);
+
+        m
+    }).await?;
+
+    // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    msg.delete(&ctx.http).await?;
+    msg.delete(&ctx).await?;
+    reply.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("channel")]
-pub async fn config_channel(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn channel(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -56,7 +62,7 @@ pub async fn config_channel(ctx: &Context, msg: &Message, mut args: Args) -> Com
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Discord channel changed to {}", channel.mention()))
@@ -72,14 +78,14 @@ pub async fn config_channel(ctx: &Context, msg: &Message, mut args: Args) -> Com
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("mentions")]
-pub async fn config_mentions(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn mentions(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -102,7 +108,7 @@ pub async fn config_mentions(ctx: &Context, msg: &Message, mut args: Args) -> Co
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Allow mentions changed to `{}`", allow_mentions))
@@ -118,14 +124,14 @@ pub async fn config_mentions(ctx: &Context, msg: &Message, mut args: Args) -> Co
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("nicks")]
-pub async fn config_nicks(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn nicks(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -148,7 +154,7 @@ pub async fn config_nicks(ctx: &Context, msg: &Message, mut args: Args) -> Comma
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Use member nicks changed to `{}`", use_nicks))
@@ -164,14 +170,14 @@ pub async fn config_nicks(ctx: &Context, msg: &Message, mut args: Args) -> Comma
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("rconaddr")]
-pub async fn config_rcon_addr(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn rconaddr(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -194,7 +200,7 @@ pub async fn config_rcon_addr(ctx: &Context, msg: &Message, mut args: Args) -> C
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Rcon address changed to `{}`", addr))
@@ -210,14 +216,14 @@ pub async fn config_rcon_addr(ctx: &Context, msg: &Message, mut args: Args) -> C
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("rconport")]
-pub async fn config_rcon_port(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn rconport(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -251,7 +257,7 @@ pub async fn config_rcon_port(ctx: &Context, msg: &Message, mut args: Args) -> C
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Rcon port changed to `{}`", port))
@@ -267,16 +273,16 @@ pub async fn config_rcon_port(ctx: &Context, msg: &Message, mut args: Args) -> C
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("rconpass")]
-pub async fn config_rcon_pass(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn rconpass(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Delete the message immedietly because it contains a password
-    msg.delete(&ctx.http).await?;
+    msg.delete(&ctx).await?;
 
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -300,7 +306,7 @@ pub async fn config_rcon_pass(ctx: &Context, msg: &Message, mut args: Args) -> C
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description("Rcon password updated")
@@ -315,13 +321,13 @@ pub async fn config_rcon_pass(ctx: &Context, msg: &Message, mut args: Args) -> C
 
     // Wait 30 seconds and delete the reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
 
     Ok(())
 }
 
-#[command("log")]
-pub async fn config_log_path(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+#[command]
+pub async fn log(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -344,7 +350,7 @@ pub async fn config_log_path(ctx: &Context, msg: &Message, mut args: Args) -> Co
     // Send a message letting the user know that the config updated
     let reply = msg
         .channel_id
-        .send_message(&ctx.http, |m| {
+        .send_message(&ctx, |m| {
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Minecraft log file changed to `{}`", path))
@@ -360,8 +366,8 @@ pub async fn config_log_path(ctx: &Context, msg: &Message, mut args: Args) -> Co
 
     // Wait 30 seconds and delete the command and reply
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
 
     Ok(())
 }
