@@ -39,6 +39,7 @@ pub async fn config(ctx: &Context, msg: &Message, _args: Args) -> CommandResult 
 }
 
 #[command]
+#[description = "Set which channel to use for sending Minecraft messages"]
 pub async fn channel(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -85,6 +86,7 @@ pub async fn channel(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
 }
 
 #[command]
+#[description = "Set if Minecraft players can mention Discord users"]
 pub async fn mentions(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -131,6 +133,7 @@ pub async fn mentions(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
 }
 
 #[command]
+#[description = "Set if the bot should use Discord server nicknames when sending to Minecraft"]
 pub async fn nicks(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -177,6 +180,7 @@ pub async fn nicks(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 }
 
 #[command]
+#[description = "Set the Minecraft RCON address"]
 pub async fn rconaddr(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -223,6 +227,7 @@ pub async fn rconaddr(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
 }
 
 #[command]
+#[description = "Set the Minecraft RCON port"]
 pub async fn rconport(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -280,6 +285,7 @@ pub async fn rconport(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
 }
 
 #[command]
+#[description = "Set the Minecraft RCON password"]
 pub async fn rconpass(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Delete the message immedietly because it contains a password
     msg.delete(&ctx).await?;
@@ -327,6 +333,7 @@ pub async fn rconpass(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
 }
 
 #[command]
+#[description = "Set the path to the Minecraft log file"]
 pub async fn log(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
