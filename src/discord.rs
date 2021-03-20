@@ -22,15 +22,15 @@ use tracing::{debug, error, info};
 const MAX_LINE_LENGTH: usize = 100;
 
 pub struct Handler {
-    cfg: Arc<RootConfig>,
+    config_lock: Arc<RwLock<RootConfig>>,
     guild_id: AtomicU64,
     is_watching: AtomicBool,
 }
 
 impl Handler {
-    pub fn new(cfg: Arc<RootConfig>) -> Self {
+    pub fn new(config_lock: Arc<RwLock<RootConfig>>) -> Self {
         Self {
-            cfg,
+            config_lock,
             guild_id: AtomicU64::new(0),
             is_watching: AtomicBool::new(false),
         }
@@ -40,7 +40,7 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        let configured_id = self.cfg.get_channel_id();
+        let configured_id = self.config_lock.read().await.get_channel_id();
 
         // Ignore messages that aren't from the configured channel
         if msg.channel_id.as_u64() != &configured_id {
@@ -71,18 +71,19 @@ impl EventHandler for Handler {
         });
 
         let lines = truncate_lines(marked);
-        let mut lines = apply_line_template(self.cfg.get_message_template(), lines);
+        let mut lines =
+            apply_line_template(self.config_lock.read().await.get_message_template(), lines);
 
         // Add attachement message if an attachment is present
         if !msg.attachments.is_empty() {
-            let line = self.cfg.get_attachment_template();
+            let line = self.config_lock.read().await.get_attachment_template();
             let line = line.replace("%num%", &msg.attachments.len().to_string());
             let line = line.replace("%url%", &msg.attachments.first().unwrap().url);
             lines.push(line);
         }
 
         // Get the name to use for these messages
-        let name = if self.cfg.use_member_nicks() {
+        let name = if self.config_lock.read().await.use_member_nicks() {
             msg.author
                 .nick_in(&ctx, msg.guild_id.unwrap())
                 .await
@@ -96,14 +97,14 @@ impl EventHandler for Handler {
             let command = build_tellraw_command(
                 name.clone(),
                 &msg.author.tag(),
-                &self.cfg.get_username_template(),
+                &self.config_lock.read().await.get_username_template(),
                 &line,
             );
 
             if let Err(e) = send_to_minecraft(
                 command,
-                self.cfg.get_rcon_addr(),
-                self.cfg.get_rcon_password(),
+                self.config_lock.read().await.get_rcon_addr(),
+                self.config_lock.read().await.get_rcon_password(),
             )
             .await
             {
@@ -127,7 +128,7 @@ impl EventHandler for Handler {
     ///
     async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         let ctx = Arc::new(ctx);
-        let cfg = Arc::clone(&self.cfg);
+        let config_lock = Arc::clone(&self.config_lock);
 
         if self.guild_id.load(Ordering::Relaxed) == 0 {
             self.guild_id.store(guilds[0].0, Ordering::Relaxed);
@@ -135,24 +136,26 @@ impl EventHandler for Handler {
 
         let guild_id = self.guild_id.load(Ordering::Relaxed);
         let guild_id = Arc::new(GuildId(guild_id));
-        let log_path = &cfg.get_log_path();
+        let log_path = config_lock.read().await.get_log_path();
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
             // Create our listener and start waiting for messages
-            if cfg.enable_webserver() {
-                let port = cfg.get_webserver_port();
+            let enable_webserver = config_lock.read().await.enable_webserver();
+            if enable_webserver {
+                let port = config_lock.read().await.get_webserver_port();
                 tokio::spawn(async move {
                     let listener = Webserver::new(port);
                     listener
-                        .listen(ctx.clone(), cfg.clone(), guild_id.clone())
+                        .listen(ctx.clone(), config_lock.clone(), guild_id.clone())
                         .await;
                 });
             } else {
-                let log_tailer = LogTailer::new(log_path.to_string(), cfg.get_death_keywords());
+                let death_keywords = config_lock.read().await.get_death_keywords();
+                let log_tailer = LogTailer::new(log_path.to_string(), death_keywords);
                 tokio::spawn(async move {
                     log_tailer
-                        .listen(ctx.clone(), cfg.clone(), guild_id.clone())
+                        .listen(ctx.clone(), config_lock.clone(), guild_id.clone())
                         .await
                 });
             }

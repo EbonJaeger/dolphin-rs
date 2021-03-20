@@ -7,7 +7,12 @@ use crate::{
 };
 use fancy_regex::Regex;
 use linemux::MuxedLines;
-use serenity::{async_trait, client::Context, model::id::ChannelId, prelude::Mentionable};
+use serenity::{
+    async_trait,
+    client::Context,
+    model::id::ChannelId,
+    prelude::{Mentionable, RwLock},
+};
 use serenity::{futures::StreamExt, model::id::GuildId};
 use tracing::{debug, error, info, warn};
 use warp::Filter;
@@ -19,7 +24,12 @@ pub trait Listener {
     /// Begin listening for messages from Minecraft. Usually you'll want to
     /// call this from an async thread so it doesn't block the rest of the
     /// program.
-    async fn listen(&self, ctx: Arc<Context>, cfg: Arc<RootConfig>, guild_id: Arc<GuildId>);
+    async fn listen(
+        &self,
+        ctx: Arc<Context>,
+        config_lock: Arc<RwLock<RootConfig>>,
+        guild_id: Arc<GuildId>,
+    );
 }
 
 /// Registers a file event listener to watch for new lines to be added
@@ -47,7 +57,12 @@ impl LogTailer {
 
 #[async_trait]
 impl Listener for LogTailer {
-    async fn listen(&self, ctx: Arc<Context>, cfg: Arc<RootConfig>, guild_id: Arc<GuildId>) {
+    async fn listen(
+        &self,
+        ctx: Arc<Context>,
+        config_lock: Arc<RwLock<RootConfig>>,
+        guild_id: Arc<GuildId>,
+    ) {
         info!("log_tailer:listen: using log file at '{}'", self.path);
         let mut parser = MessageParser::new(self.custom_keywords.clone());
 
@@ -65,12 +80,12 @@ impl Listener for LogTailer {
             // Check if the line is something we have to send
             if let Some(message) = parser.parse_line(line.line()) {
                 let ctx = ctx.clone();
-                let cfg = cfg.clone();
+                let config_lock = config_lock.clone();
                 let guild_id = guild_id.clone();
 
                 // Send the message to the Discord channel
                 tokio::spawn(async move {
-                    if let Err(e) = send_to_discord(ctx, cfg, guild_id, message).await {
+                    if let Err(e) = send_to_discord(ctx, config_lock, guild_id, message).await {
                         error!(
                             "discord:handler: unable to send a message to Discord: {}",
                             e
@@ -103,7 +118,12 @@ impl Webserver {
 
 #[async_trait]
 impl Listener for Webserver {
-    async fn listen(&self, ctx: Arc<Context>, cfg: Arc<RootConfig>, guild_id: Arc<GuildId>) {
+    async fn listen(
+        &self,
+        ctx: Arc<Context>,
+        config_lock: Arc<RwLock<RootConfig>>,
+        guild_id: Arc<GuildId>,
+    ) {
         // POST /message/:msg
         let messages = warp::post()
             .and(warp::path("message"))
@@ -111,7 +131,7 @@ impl Listener for Webserver {
             .and(warp::body::json())
             .and_then(move |message: MinecraftMessage| {
                 let ctx = ctx.clone();
-                let cfg = cfg.clone();
+                let cfg = config_lock.clone();
                 let guild_id = guild_id.clone();
 
                 // Send the message to the Discord channel
@@ -244,7 +264,7 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
 /// Returns a `serenity::Error` if a message is unable to be sent to the channel or the webhook.
 async fn send_to_discord(
     ctx: Arc<Context>,
-    cfg: Arc<RootConfig>,
+    config_lock: Arc<RwLock<RootConfig>>,
     guild_id: Arc<GuildId>,
     message: MinecraftMessage,
 ) -> Result<(), Error> {
@@ -260,7 +280,7 @@ async fn send_to_discord(
     };
 
     let mut content = message.content.clone();
-    if cfg.mentions_allowed() {
+    if config_lock.read().await.mentions_allowed() {
         content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
     }
 
@@ -272,8 +292,8 @@ async fn send_to_discord(
     };
 
     // Check if we should use a webhook to post the message
-    if cfg.webhook_enabled() {
-        let url = &cfg.webhook_url();
+    if config_lock.read().await.webhook_enabled() {
+        let url = &config_lock.read().await.webhook_url();
 
         post_to_webhook(Arc::clone(&ctx), message, url).await?
     } else {
@@ -283,7 +303,8 @@ async fn send_to_discord(
             Source::Server => message.content,
         };
 
-        if let Err(e) = ChannelId(cfg.get_channel_id()).say(&ctx, final_msg).await {
+        let id = config_lock.read().await.get_channel_id();
+        if let Err(e) = ChannelId(id).say(&ctx, final_msg).await {
             return Err(Error::Discord(e));
         }
     }

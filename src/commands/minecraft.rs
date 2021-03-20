@@ -20,11 +20,11 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
         .expect("expected config container in TypeMap");
 
     // Create RCON connection
-    let addr = config.get_rcon_addr();
+    let addr = config.read().await.get_rcon_addr();
 
     let mut conn = Connection::builder()
         .enable_minecraft_quirks(true)
-        .connect(addr, config.get_rcon_password().as_str())
+        .connect(addr, config.read().await.get_rcon_password().as_str())
         .await?;
 
     // Send the `list` command to the Minecraft server

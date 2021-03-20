@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Configuration commands:
+  - Change Discord channel for Minecraft messages
+  - Change if mentions from Minecraft are allowed
+  - Change if the bot should use Discord nicknames in Minecraft messages
+  - Change RCON address
+  - Change RCON port
+  - Change RCON password
+  - Change Minecraft log file path
+
+### Removed
+
+- Config option for bot token
+  - This now uses the environment variable named `DISCORD_TOKEN`
+
 ## [v2.4.0] - 2021-03-08
 
 ### Changed

@@ -14,7 +14,7 @@ extern crate lazy_static;
 extern crate pipeline;
 
 use clap::{App, Arg};
-use commands::{general::*, hooks::after, minecraft::*};
+use commands::{admin::*, general::*, hooks::after, minecraft::*};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
@@ -23,14 +23,35 @@ use serenity::{
     http::Http,
     prelude::*,
 };
-use std::{collections::HashSet, error::Error, process, sync::Arc};
+use std::{collections::HashSet, env, error::Error, process, sync::Arc};
 use tracing::{info, warn, Level};
 
 struct ConfigContainer;
 
 impl TypeMapKey for ConfigContainer {
-    type Value = Arc<RootConfig>;
+    type Value = Arc<RwLock<RootConfig>>;
 }
+
+struct ConfigPathContainer;
+
+impl TypeMapKey for ConfigPathContainer {
+    type Value = Arc<String>;
+}
+
+#[group]
+#[description = "Administrative commands for the bot."]
+#[only_in("guilds")]
+#[commands(
+    config,
+    config_channel,
+    config_mentions,
+    config_nicks,
+    config_rcon_addr,
+    config_rcon_port,
+    config_rcon_pass,
+    config_log_path
+)]
+struct Admin;
 
 #[group]
 #[description = "Commands to interact with the Minecraft server."]
@@ -82,11 +103,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         confy::load("dolphin").expect("Unable to load the configuration file")
     };
 
-    let cfg_arc = Arc::new(cfg);
+    let cfg_lock = Arc::new(RwLock::new(cfg));
     info!("Config loaded successfully");
 
     // validate the bot token
-    let bot_token = cfg_arc.get_bot_token();
+    let bot_token = env::var("DISCORD_TOKEN").expect("expected a Discord token in the environment");
     if validate_token(bot_token.clone()).is_err() {
         warn!("+--------------------------------------------------------------------------------------------+");
         warn!("| Discord bot token is either missing or invalid!                                            |");
@@ -100,7 +121,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         process::exit(0);
     }
 
-    let handler = Handler::new(Arc::clone(&cfg_arc));
+    let handler = Handler::new(Arc::clone(&cfg_lock));
 
     let http = Http::new_with_token(&bot_token);
 
@@ -118,6 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let framework = StandardFramework::new()
         .configure(|c| c.owners(owners).prefix("!"))
         .help(&SHOW_HELP)
+        .group(&ADMIN_GROUP)
         .group(&MINECRAFT_GROUP)
         .after(after);
 
@@ -136,7 +158,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     {
         let mut data = client.data.write().await;
-        data.insert::<ConfigContainer>(Arc::clone(&cfg_arc));
+        data.insert::<ConfigContainer>(Arc::clone(&cfg_lock));
+
+        if let Some(path) = matches.value_of("config") {
+            data.insert::<ConfigPathContainer>(Arc::new(path.to_string()));
+        } else {
+            data.insert::<ConfigPathContainer>(Arc::new(String::new()));
+        }
     }
 
     // Connect to Discord and wait for events

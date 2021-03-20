@@ -12,7 +12,6 @@ pub struct RootConfig {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DiscordConfig {
-    bot_token: String,
     channel_id: u64,
     allow_mentions: bool,
     use_member_nicks: bool,
@@ -52,7 +51,6 @@ impl Default for RootConfig {
     fn default() -> Self {
         RootConfig {
             discord_config: DiscordConfig {
-                bot_token: String::new(),
                 channel_id: 0,
                 allow_mentions: true,
                 use_member_nicks: false,
@@ -82,10 +80,6 @@ impl Default for RootConfig {
 }
 
 impl RootConfig {
-    pub fn get_bot_token(&self) -> String {
-        self.discord_config.bot_token.clone()
-    }
-
     pub fn get_channel_id(&self) -> u64 {
         self.discord_config.channel_id
     }
@@ -143,5 +137,33 @@ impl RootConfig {
 
     pub fn get_webserver_port(&self) -> u16 {
         self.webserver_config.port
+    }
+
+    pub fn set_discord_channel(&mut self, channel: u64) {
+        self.discord_config.channel_id = channel;
+    }
+
+    pub fn set_allow_mentions(&mut self, value: bool) {
+        self.discord_config.allow_mentions = value;
+    }
+
+    pub fn set_use_nicks(&mut self, value: bool) {
+        self.discord_config.use_member_nicks = value;
+    }
+
+    pub fn set_rcon_addr(&mut self, value: String) {
+        self.minecraft_config.rcon_ip = value;
+    }
+
+    pub fn set_rcon_port(&mut self, value: i32) {
+        self.minecraft_config.rcon_port = value;
+    }
+
+    pub fn set_rcon_password(&mut self, value: String) {
+        self.minecraft_config.rcon_password = value;
+    }
+
+    pub fn set_log_file(&mut self, value: String) {
+        self.minecraft_config.log_file_path = value;
     }
 }
