@@ -84,14 +84,12 @@ impl Listener for LogTailer {
                 let guild_id = guild_id.clone();
 
                 // Send the message to the Discord channel
-                tokio::spawn(async move {
-                    if let Err(e) = send_to_discord(ctx, config_lock, guild_id, message).await {
-                        error!(
-                            "discord:handler: unable to send a message to Discord: {}",
-                            e
-                        );
-                    }
-                });
+                if let Err(e) = send_to_discord(ctx, config_lock, guild_id, message).await {
+                    error!(
+                        "discord:handler: unable to send a message to Discord: {}",
+                        e
+                    );
+                }
             }
         }
     }
