@@ -1,4 +1,5 @@
-use serenity::{client::Context, model::prelude::Message, utils::Colour, Error};
+use crate::errors::{Error, Result};
+use serenity::{client::Context, model::prelude::Message, utils::Colour};
 use std::fmt::Display;
 use tokio::time::{sleep, Duration};
 
@@ -10,12 +11,7 @@ use tokio::time::{sleep, Duration};
 /// will be deleted after 30 seconds, assuming the embed
 /// was sent successfully.
 ///
-pub async fn send_error_embed<T>(
-    ctx: &Context,
-    msg: &Message,
-    desc: &str,
-    reason: T,
-) -> Result<(), Error>
+pub async fn send_error_embed<T>(ctx: &Context, msg: &Message, desc: &str, reason: T) -> Result<()>
 where
     T: Display,
 {
@@ -36,5 +32,8 @@ where
     // Wait 30 seconds and delete the reply and the originating message
     sleep(Duration::new(30, 0)).await;
     reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await
+    match msg.delete(&ctx.http).await {
+        Ok(()) => Ok(()),
+        Err(e) => Err(Error::Discord(e)),
+    }
 }

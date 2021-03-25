@@ -3,12 +3,16 @@ use std::{
     fmt::{self, Display},
     io::Error as IoError,
     num::ParseIntError,
+    result::Result as StdResult,
 };
 
 use rcon::Error as RconError;
 use reqwest::Error as ReqwestError;
 use serenity::Error as DiscordError;
 use tracing::instrument;
+
+/// A common result type between many of the fuctions in this application.
+pub type Result<T> = StdResult<T, Error>;
 
 /// A common error enum returned by most of the functions in this
 /// application within a [`Result`].

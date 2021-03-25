@@ -1,4 +1,4 @@
-use crate::{errors::Error, ConfigContainer};
+use crate::{errors::Result, ConfigContainer};
 use rcon::Connection;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -38,7 +38,7 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
     Ok(())
 }
 
-async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<(), Error> {
+async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<()> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();

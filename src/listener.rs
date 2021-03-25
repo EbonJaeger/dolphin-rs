@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     config::RootConfig,
-    errors::Error,
+    errors::{Error, Result},
     minecraft::{MessageParser, MinecraftMessage, Source},
 };
 use fancy_regex::Regex;
@@ -158,11 +158,7 @@ impl Listener for Webserver {
 /// If the message is from a player, we will execute the
 /// webhook with that player's head as the avatar and their
 /// in-game name as the username.
-async fn post_to_webhook(
-    ctx: Arc<Context>,
-    message: MinecraftMessage,
-    url: &str,
-) -> Result<(), Error> {
+async fn post_to_webhook(ctx: Arc<Context>, message: MinecraftMessage, url: &str) -> Result<()> {
     // Split the url into the webhook id an token
     let parts = match split_webhook_url(url) {
         Some(parts) => parts,
@@ -267,7 +263,7 @@ async fn send_to_discord(
     config_lock: Arc<RwLock<RootConfig>>,
     guild_id: Arc<GuildId>,
     message: MinecraftMessage,
-) -> Result<(), Error> {
+) -> Result<()> {
     debug!(
         "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
         message

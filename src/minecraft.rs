@@ -4,7 +4,7 @@ use fancy_regex::Regex;
 use serde::Deserialize;
 use tracing::error;
 
-use crate::errors::Error;
+use crate::errors::{Error, Result};
 
 #[derive(Clone)]
 pub struct MessageParser {
@@ -310,7 +310,7 @@ struct IdResponse {
     id: String,
 }
 
-async fn uuid_from_name(name: String) -> Result<IdResponse, Error> {
+async fn uuid_from_name(name: String) -> Result<IdResponse> {
     let url = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
     match reqwest::get(url).await?.json::<IdResponse>().await {
         Ok(resp) => Ok(resp),

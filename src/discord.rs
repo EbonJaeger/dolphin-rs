@@ -1,5 +1,5 @@
 use crate::config::RootConfig;
-use crate::errors::Error;
+use crate::errors::{Error, Result};
 use crate::listener::{Listener, LogTailer, Webserver};
 use crate::markdown;
 use rcon::Connection;
@@ -261,7 +261,7 @@ async fn send_to_minecraft(
     command: String,
     rcon_addr: String,
     rcon_password: String,
-) -> Result<(), Error> {
+) -> Result<()> {
     debug!("send_to_minecraft: {}", command);
 
     // Create RCON connection
