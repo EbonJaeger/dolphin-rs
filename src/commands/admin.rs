@@ -382,7 +382,7 @@ pub async fn log(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
 #[command]
 #[description = "Set the Regex pattern to use to parse chat messages"]
-pub async fn chatregex(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
 
@@ -393,13 +393,24 @@ pub async fn chatregex(ctx: &Context, msg: &Message, mut args: Args) -> CommandR
             .clone()
     };
 
-    let regex = args.single::<String>()?;
+    let regex = args.rest();
+    if !regex.starts_with('`') || !regex.ends_with('`') {
+        send_error_embed(
+            &ctx,
+            &msg,
+            "Regex string should be in a code block.\nTry adding a single ` to the start and end.",
+            "E_PARSE_ERROR",
+        )
+        .await?;
+        return Ok(());
+    }
+    let regex = &regex[1..regex.len() - 1];
 
     if let Err(err) = Regex::new(&regex) {
         send_error_embed(
             &ctx,
             &msg,
-            format!("`{}` is not a valid Regex pattern.\n\nSee this for more information: https://docs.rs/regex/1.4.5/regex/#syntax", regex).as_str(),
+            format!("`{}` is not a valid Regex pattern.\nSee this for more information: https://docs.rs/regex/1.4.5/regex/#syntax", regex).as_str(),
             err.to_string(),
         )
         .await?;
@@ -409,7 +420,7 @@ pub async fn chatregex(ctx: &Context, msg: &Message, mut args: Args) -> CommandR
     // Update the config inside a block so we release locks as soon as possible
     {
         let mut c = config_lock.write().await;
-        c.set_chat_regex(regex.clone());
+        c.set_chat_regex(regex.clone().to_string());
         save_config(ctx, c.clone()).await?;
     }
 
