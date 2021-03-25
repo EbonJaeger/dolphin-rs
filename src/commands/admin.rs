@@ -381,7 +381,7 @@ pub async fn log(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 }
 
 #[command]
-#[description = "Set the Regex pattern to use to parse chat messages"]
+#[description = "Set the Regex pattern to use to parse chat messages, e.g. !config chatregex `^<(?P<username>\\w+)> (?P<content>.+)`"]
 pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
