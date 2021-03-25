@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use fancy_regex::Regex;
 use serde::Deserialize;
+use tracing::error;
+
+use crate::errors::Error;
 
 #[derive(Clone)]
 pub struct MessageParser {
@@ -124,7 +127,7 @@ impl MessageParser {
     /// Parse a line from a log file. If it is a message that we
     /// want to send over to Discord, it will return a [MinecraftMessage].
     /// If the line does not match anything we want, [None] will be returned.
-    pub fn parse_line(&mut self, line: &str, regex: String) -> Option<MinecraftMessage> {
+    pub async fn parse_line(&mut self, line: &str, regex: String) -> Option<MinecraftMessage> {
         let line = match trim_prefix(line) {
             Some(line) => line.trim(),
             None => return None,
@@ -160,15 +163,34 @@ impl MessageParser {
             match captures.name("username") {
                 Some(name) => match captures.name("content") {
                     Some(content) => {
+                        let name = name.as_str();
+                        let content = content.as_str();
+
                         // Get the player's UUID so we can get their skin later
-                        let uuid = match self.cached_uuids.get(name.as_str()) {
+                        // If the player isn't in our cache, try to get their UUID
+                        // from the Mojang API using their username. If that fails,
+                        // fallback to a UUID to a Steve skin.
+                        let uuid = match self.cached_uuids.get(name) {
                             Some(uuid) => uuid.to_string(),
-                            None => String::from("MHF_Steve"),
+                            None => match uuid_from_name(name.to_string()).await {
+                                Ok(resp) => {
+                                    &self.cached_uuids.insert(resp.name, resp.id.clone());
+                                    resp.id
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "error getting UUID for name '{}': {}",
+                                        name.to_string(),
+                                        e
+                                    );
+                                    String::from("c06f8906-4c8a-4911-9c29-ea1dbd1aab82")
+                                }
+                            },
                         };
 
                         Some(MinecraftMessage {
-                            name: name.as_str().to_string(),
-                            content: content.as_str().to_string(),
+                            name: name.to_string(),
+                            content: content.to_string(),
                             source: Source::Player,
                             uuid,
                         })
@@ -282,14 +304,28 @@ pub struct MinecraftMessage {
     pub uuid: String,
 }
 
+#[derive(Deserialize)]
+struct IdResponse {
+    name: String,
+    id: String,
+}
+
+async fn uuid_from_name(name: String) -> Result<IdResponse, Error> {
+    let url = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
+    match reqwest::get(url).await?.json::<IdResponse>().await {
+        Ok(resp) => Ok(resp),
+        Err(e) => Err(Error::Http(e)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::minecraft::MessageParser;
     use crate::minecraft::MinecraftMessage;
     use crate::minecraft::Source;
 
-    #[test]
-    fn parse_vanilla_chat_line() {
+    #[tokio::test]
+    async fn parse_vanilla_chat_line() {
         // Given
         let input =
             String::from("[12:32:45] [Server thread/INFO]: <EbonJaeger> Sending a chat message");
@@ -302,17 +338,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse chat message"),
         }
     }
 
-    #[test]
-    fn parse_non_vanilla_chat_line() {
+    #[tokio::test]
+    async fn parse_non_vanilla_chat_line() {
         // Given
         let input =
             String::from("[12:32:45] [Chat Thread - #0/INFO]: <EbonJaeger> Sending a chat message");
@@ -325,17 +364,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse non-vanilla chat message"),
         }
     }
 
-    #[test]
-    fn parse_custom_chat_line() {
+    #[tokio::test]
+    async fn parse_custom_chat_line() {
         // Given
         let input = String::from(
             "[12:32:45] [Chat Thread - #0/INFO]: [Survival] EbonJaeger: Sending a chat message",
@@ -349,14 +391,17 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input, String::from(r"(?P<username>\w+): (?P<content>.+)$")) {
+        match parser
+            .parse_line(&input, String::from(r"(?P<username>\w+): (?P<content>.+)$"))
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse non-vanilla chat message"),
         }
     }
 
-    #[test]
-    fn parse_join_line() {
+    #[tokio::test]
+    async fn parse_join_line() {
         // Given
         let input = String::from("[12:32:45] [Server thread/INFO]: TestUser joined the game");
         let mut parser = MessageParser::new_for_test();
@@ -368,17 +413,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse join message"),
         }
     }
 
-    #[test]
-    fn parse_leave_line() {
+    #[tokio::test]
+    async fn parse_leave_line() {
         // Given
         let input = String::from("[12:32:45] [Server thread/INFO]: EbonJaeger left the game");
         let mut parser = MessageParser::new_for_test();
@@ -390,10 +438,13 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse leave message"),
         }
@@ -403,8 +454,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn parse_advancement_line() {
+    #[tokio::test]
+    async fn parse_advancement_line() {
         // Given
         let input = String::from(
             "[12:32:45] [Server thread/INFO]: TestUser has made the advancement [MonsterHunter]",
@@ -420,17 +471,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse advancement message"),
         }
     }
 
-    #[test]
-    fn parse_advancement2_line() {
+    #[tokio::test]
+    async fn parse_advancement2_line() {
         // Given
         let input = String::from(
             "[12:32:45] [Server thread/INFO]: TestUser has completed the challenge [MonsterHunter]",
@@ -446,17 +500,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse challenge message"),
         }
     }
 
-    #[test]
-    fn parse_server_start_line() {
+    #[tokio::test]
+    async fn parse_server_start_line() {
         // Given
         let input = String::from(
             "[12:32:45] [Server thread/INFO]: Done (21.3242s)! For help, type \"help\"",
@@ -470,17 +527,20 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server started message"),
         }
     }
 
-    #[test]
-    fn parse_server_stop_line() {
+    #[tokio::test]
+    async fn parse_server_stop_line() {
         // Given
         let input = String::from("[12:32:45] [Server thread/INFO]: Stopping the server");
         let mut parser = MessageParser::new_for_test();
@@ -492,32 +552,38 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        match parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server stopped message"),
         }
     }
 
-    #[test]
-    fn parser_ignore_villager_death_message() {
+    #[tokio::test]
+    async fn parser_ignore_villager_death_message() {
         // Given
         let input = String::from("[12:32:45] [Server thread/INFO]: Villager axw['Villager'/85, l='world', x=-147.30, y=57.00, z=-190.70] died, message: 'Villager was squished too much'");
         let mut parser = MessageParser::new_for_test();
 
         // When/Then
-        if let Some(_) = parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        if let Some(_) = parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             panic!("parsed a message when the line should be ignored")
         }
     }
 
-    #[test]
-    fn parser_cache_uuid_on_join() {
+    #[tokio::test]
+    async fn parser_cache_uuid_on_join() {
         // Given
         let input = String::from(
             "[19:54:56] [User Authenticator #1/INFO]: UUID of player EbonJaeger is 7f7c909b-24f1-49a4-817f-baa4f4973980",
@@ -525,10 +591,13 @@ mod tests {
         let mut parser = MessageParser::new_for_test();
 
         // When
-        if let None = parser.parse_line(
-            &input,
-            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
-        ) {
+        if let None = parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+        {
             // Then
             if let Some(uuid) = parser.cached_uuids().get("EbonJaeger") {
                 if uuid != "7f7c909b-24f1-49a4-817f-baa4f4973980" {

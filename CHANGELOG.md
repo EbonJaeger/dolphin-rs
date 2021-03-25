@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Config is saved to disk on start so that new options are present
+- Try to get a player's UUID from Mojang if they aren't in the name to UUID cache already
 
 ### Removed
 

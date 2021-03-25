@@ -6,6 +6,7 @@ use std::{
 };
 
 use rcon::Error as RconError;
+use reqwest::Error as ReqwestError;
 use serenity::Error as DiscordError;
 use tracing::instrument;
 
@@ -18,6 +19,7 @@ use tracing::instrument;
 #[non_exhaustive]
 pub enum Error {
     Discord(DiscordError),
+    Http(ReqwestError),
     Io(IoError),
     Other(&'static str),
     Parse(ParseIntError),
@@ -48,10 +50,17 @@ impl From<RconError> for Error {
     }
 }
 
+impl From<ReqwestError> for Error {
+    fn from(e: ReqwestError) -> Error {
+        Error::Http(e)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Discord(inner) => fmt::Display::fmt(&inner, f),
+            Error::Http(inner) => fmt::Display::fmt(&inner, f),
             Error::Io(inner) => fmt::Display::fmt(&inner, f),
             Error::Other(msg) => f.write_str(msg),
             Error::Parse(inner) => fmt::Display::fmt(&inner, f),
@@ -65,6 +74,7 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::Discord(inner) => Some(inner),
+            Error::Http(inner) => Some(inner),
             Error::Io(inner) => Some(inner),
             Error::Parse(inner) => Some(inner),
             Error::Rcon(inner) => Some(inner),

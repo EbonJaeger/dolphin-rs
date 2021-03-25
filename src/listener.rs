@@ -80,7 +80,7 @@ impl Listener for LogTailer {
         // Wait for the next line
         while let Some(Ok(line)) = log_watcher.next().await {
             // Check if the line is something we have to send
-            if let Some(message) = parser.parse_line(line.line(), regex.clone()) {
+            if let Some(message) = parser.parse_line(line.line(), regex.clone()).await {
                 let ctx = ctx.clone();
                 let config_lock = config_lock.clone();
                 let guild_id = guild_id.clone();
