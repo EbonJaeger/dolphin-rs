@@ -108,6 +108,14 @@ There are a few placeholders you can use in the templates to customize your chat
 - `%url%` **Note:** This is only used for attachment messages to open the first attachment on click.
 - `%username%`
 
+### Chat Regex
+
+You can use your own pattern to match chat messages from your server in case you have a custom chat format via server plugins. The default setting matches vanilla chat messages.
+
+The parser expects there to be two [named capture groups](https://docs.rs/regex/1.4.5/regex/#grouping-and-flags): `username` and `content`. You can view the entirety of Rust's Regex syntax [here](https://docs.rs/regex/1.4.5/regex/#syntax). Most of the syntax is the same as other Regex engines. It is recommended to use something like [Regexr](https://regexr.com) to help you form a pattern.
+
+Default: `^<(?P<username>\w+)> (?P<content>.+)`
+
 ## Usage
 
 ```

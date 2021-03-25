@@ -11,6 +11,7 @@ pub struct RootConfig {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct DiscordConfig {
     channel_id: u64,
     allow_mentions: bool,
@@ -19,28 +20,33 @@ pub struct DiscordConfig {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WebhookConfig {
     enabled: bool,
     url: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MinecraftConfig {
     rcon_ip: String,
     rcon_port: i32,
     rcon_password: String,
     custom_death_keywords: Vec<String>,
     log_file_path: String,
+    chat_regex: String,
     templates: TellrawTemplates,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WebserverConfig {
     enabled: bool,
     port: u16,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TellrawTemplates {
     username_template: String,
     attachment_template: String,
@@ -50,31 +56,62 @@ pub struct TellrawTemplates {
 impl Default for RootConfig {
     fn default() -> Self {
         RootConfig {
-            discord_config: DiscordConfig {
-                channel_id: 0,
-                allow_mentions: true,
-                use_member_nicks: false,
-                webhook_config: WebhookConfig {
-                    enabled: false,
-                    url: String::new(),
-                },
-            },
-            minecraft_config: MinecraftConfig {
-                rcon_ip: String::from("localhost"),
-                rcon_port: 25575,
-                rcon_password: String::new(),
-                custom_death_keywords: Vec::new(),
-                log_file_path: String::new(),
-                templates: TellrawTemplates {
-                    username_template: String::from("{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"%mention% \"}}",),
-                    attachment_template: String::from("{\"color\":\"gray\",\"text\":\"[%num% attachment(s) sent]\", \"clickEvent\":{\"action\":\"open_url\",\"value\":\"%url%\"},\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to open\"}}}"),
-                    message_template: String::from("{\"color\":\"white\", \"text\":\"%content%\"}"),
-                },
-            },
-            webserver_config: WebserverConfig {
-                enabled: false,
-                port: 25585,
-            }
+            discord_config: DiscordConfig::default(),
+            minecraft_config: MinecraftConfig::default(),
+            webserver_config: WebserverConfig::default(),
+        }
+    }
+}
+
+impl Default for DiscordConfig {
+    fn default() -> Self {
+        DiscordConfig {
+            channel_id: 0,
+            allow_mentions: true,
+            use_member_nicks: false,
+            webhook_config: WebhookConfig::default(),
+        }
+    }
+}
+
+impl Default for WebhookConfig {
+    fn default() -> Self {
+        WebhookConfig {
+            enabled: false,
+            url: String::new(),
+        }
+    }
+}
+
+impl Default for MinecraftConfig {
+    fn default() -> Self {
+        MinecraftConfig {
+            rcon_ip: String::from("localhost"),
+            rcon_port: 25575,
+            rcon_password: String::new(),
+            custom_death_keywords: Vec::new(),
+            log_file_path: String::new(),
+            chat_regex: String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            templates: TellrawTemplates::default(),
+        }
+    }
+}
+
+impl Default for TellrawTemplates {
+    fn default() -> Self {
+        TellrawTemplates {
+            username_template: String::from("{\"color\": \"white\", \"text\": \"<%username%> \", \"clickEvent\":{\"action\":\"suggest_command\", \"value\":\"%mention% \"}}",),
+            attachment_template: String::from("{\"color\":\"gray\",\"text\":\"[%num% attachment(s) sent]\", \"clickEvent\":{\"action\":\"open_url\",\"value\":\"%url%\"},\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to open\"}}}"),
+            message_template: String::from("{\"color\":\"white\", \"text\":\"%content%\"}"),
+        }
+    }
+}
+
+impl Default for WebserverConfig {
+    fn default() -> Self {
+        WebserverConfig {
+            enabled: false,
+            port: 25585,
         }
     }
 }
@@ -117,6 +154,10 @@ impl RootConfig {
 
     pub fn get_log_path(&self) -> String {
         self.minecraft_config.log_file_path.clone()
+    }
+
+    pub fn get_chat_regex(&self) -> String {
+        self.minecraft_config.chat_regex.clone()
     }
 
     pub fn get_attachment_template(&self) -> String {
@@ -165,5 +206,9 @@ impl RootConfig {
 
     pub fn set_log_file(&mut self, value: String) {
         self.minecraft_config.log_file_path = value;
+    }
+
+    pub fn set_chat_regex(&mut self, value: String) {
+        self.minecraft_config.chat_regex = value;
     }
 }

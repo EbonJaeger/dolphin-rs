@@ -85,13 +85,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_max_level(log_level)
         .init();
 
-    let cfg: config::RootConfig = if matches.value_of("config").is_some() {
-        let path = matches
-            .value_of("config")
-            .expect("Unable to read command argument");
-        confy::load_path(path).expect("Unable to load the configuration file")
-    } else {
-        confy::load("dolphin").expect("Unable to load the configuration file")
+    let config_path = matches.value_of("config");
+
+    let cfg: config::RootConfig = match config_path {
+        Some(path) => confy::load_path(path).expect("Unable to load the configuration file"),
+        None => confy::load("dolphin").expect("Unable to load the configuration file"),
+    };
+
+    // Save the config back to disk to make sure new options are saved
+    match config_path {
+        Some(path) => confy::store_path(path, cfg.clone())?,
+        None => confy::store("dolphin", cfg.clone())?,
     };
 
     let cfg_lock = Arc::new(RwLock::new(cfg));
@@ -151,7 +155,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut data = client.data.write().await;
         data.insert::<ConfigContainer>(Arc::clone(&cfg_lock));
 
-        if let Some(path) = matches.value_of("config") {
+        if let Some(path) = config_path {
             data.insert::<ConfigPathContainer>(Arc::new(path.to_string()));
         } else {
             data.insert::<ConfigPathContainer>(Arc::new(String::new()));

@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Configuration commands:
-  - Change Discord channel for Minecraft messages
-  - Change if mentions from Minecraft are allowed
-  - Change if the bot should use Discord nicknames in Minecraft messages
-  - Change RCON address
-  - Change RCON port
-  - Change RCON password
-  - Change Minecraft log file path
+- Configuration commands to change various parts of the bot's config. See `!help config` for a list of subcommands
+- Configuration option to set the Regex pattern for parsing chat messages
+
+### Changed
+
+- Config is saved to disk on start so that new options are present
 
 ### Removed
 

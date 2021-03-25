@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use fancy_regex::Regex;
 use serenity::{
     client::Context,
     framework::standard::{macros::command, Args, CommandResult},
@@ -14,7 +15,7 @@ use crate::{config::RootConfig, ConfigContainer, ConfigPathContainer};
 use super::embed::send_error_embed;
 
 #[command]
-#[sub_commands(channel, mentions, nicks, rconaddr, rconport, rconpass, log)]
+#[sub_commands(channel, mentions, nicks, rconaddr, rconport, rconpass, log, chatregex)]
 #[required_permissions("ADMINISTRATOR")]
 pub async fn config(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let reply = msg.channel_id.send_message(&ctx, |m| {
@@ -361,6 +362,64 @@ pub async fn log(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description(format!("Minecraft log file changed to `{}`", path))
+                    .color(Colour::DARK_GREEN);
+
+                e
+            })
+            .reference_message(msg);
+
+            m
+        })
+        .await?;
+
+    // Wait 30 seconds and delete the command and reply
+    sleep(Duration::new(30, 0)).await;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
+
+    Ok(())
+}
+
+#[command]
+#[description = "Set the Regex pattern to use to parse chat messages"]
+pub async fn chatregex(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let config_lock = {
+        let config_read = ctx.data.read().await;
+
+        config_read
+            .get::<ConfigContainer>()
+            .cloned()
+            .expect("expected config container in TypeMap")
+            .clone()
+    };
+
+    let regex = args.single::<String>()?;
+
+    if let Err(err) = Regex::new(&regex) {
+        send_error_embed(
+            &ctx,
+            &msg,
+            format!("`{}` is not a valid Regex pattern.\n\nSee this for more information: https://docs.rs/regex/1.4.5/regex/#syntax", regex).as_str(),
+            err.to_string(),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Update the config inside a block so we release locks as soon as possible
+    {
+        let mut c = config_lock.write().await;
+        c.set_chat_regex(regex.clone());
+        save_config(ctx, c.clone()).await?;
+    }
+
+    // Send a message letting the user know that the config updated
+    let reply = msg
+        .channel_id
+        .send_message(&ctx, |m| {
+            m.embed(|e| {
+                e.title("Configuration Changed")
+                    .description("Minecraft chat regex updated!")
                     .color(Colour::DARK_GREEN);
 
                 e

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use fancy_regex::Regex;
 use serde::Deserialize;
 
 #[derive(Clone)]
@@ -120,36 +121,10 @@ impl MessageParser {
         self.cached_uuids.clone()
     }
 
-    /// Parses a chat line and returns the contents in the form of a [MinecraftMessage].
-    fn parse_chat_line(&mut self, line: &str) -> Option<MinecraftMessage> {
-        // Split the message into parts
-        let parts = line.splitn(2, ' ').collect::<Vec<&str>>();
-
-        // Trim the < and > from the username part of the line
-        let name = match parts[0].get(1..parts[0].len() - 1) {
-            Some(username) => username,
-            None => return None,
-        };
-
-        let uuid = match self.cached_uuids.get(name) {
-            Some(uuid) => uuid.to_string(),
-            None => String::from("MHF_Steve"),
-        };
-
-        let message = parts[1];
-
-        Some(MinecraftMessage {
-            name: String::from(name),
-            content: String::from(message),
-            source: Source::Player,
-            uuid,
-        })
-    }
-
     /// Parse a line from a log file. If it is a message that we
     /// want to send over to Discord, it will return a [MinecraftMessage].
     /// If the line does not match anything we want, [None] will be returned.
-    pub fn parse_line(&mut self, line: &str) -> Option<MinecraftMessage> {
+    pub fn parse_line(&mut self, line: &str, regex: String) -> Option<MinecraftMessage> {
         let line = match trim_prefix(line) {
             Some(line) => line.trim(),
             None => return None,
@@ -171,9 +146,37 @@ impl MessageParser {
             return None;
         }
 
+        let chat_regex = Regex::new(&regex).unwrap();
+
         // Check if the line is a chat message
-        if line.starts_with('<') {
-            self.parse_chat_line(line)
+        if chat_regex.is_match(&line).unwrap() {
+            let captures = chat_regex
+                .captures(line)
+                .expect("line matched, but couldn't get captures")
+                .expect("line matched, but captures not found");
+
+            // Use pattern matching to get the username and content
+            // of the message
+            match captures.name("username") {
+                Some(name) => match captures.name("content") {
+                    Some(content) => {
+                        // Get the player's UUID so we can get their skin later
+                        let uuid = match self.cached_uuids.get(name.as_str()) {
+                            Some(uuid) => uuid.to_string(),
+                            None => String::from("MHF_Steve"),
+                        };
+
+                        Some(MinecraftMessage {
+                            name: name.as_str().to_string(),
+                            content: content.as_str().to_string(),
+                            source: Source::Player,
+                            uuid,
+                        })
+                    }
+                    None => None,
+                },
+                None => None,
+            }
         } else if line.contains("joined the game") || line.contains("left the game") {
             if line.contains("left the game") {
                 // Leave message, so remove this player from the cache
@@ -299,7 +302,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse chat message"),
         }
@@ -319,7 +325,31 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
+            Some(msg) => assert_eq!(msg, expected),
+            None => panic!("failed to parse non-vanilla chat message"),
+        }
+    }
+
+    #[test]
+    fn parse_custom_chat_line() {
+        // Given
+        let input = String::from(
+            "[12:32:45] [Chat Thread - #0/INFO]: [Survival] EbonJaeger: Sending a chat message",
+        );
+        let mut parser = MessageParser::new_for_test();
+        let expected = MinecraftMessage {
+            name: String::from("EbonJaeger"),
+            content: String::from("Sending a chat message"),
+            source: Source::Player,
+            uuid: String::from("7f7c909b-24f1-49a4-817f-baa4f4973980"),
+        };
+
+        // When/Then
+        match parser.parse_line(&input, String::from(r"(?P<username>\w+): (?P<content>.+)$")) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse non-vanilla chat message"),
         }
@@ -338,7 +368,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse join message"),
         }
@@ -357,7 +390,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse leave message"),
         }
@@ -384,7 +420,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse advancement message"),
         }
@@ -407,7 +446,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse challenge message"),
         }
@@ -428,7 +470,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server started message"),
         }
@@ -447,7 +492,10 @@ mod tests {
         };
 
         // When/Then
-        match parser.parse_line(&input) {
+        match parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             Some(msg) => assert_eq!(msg, expected),
             None => panic!("failed to parse server stopped message"),
         }
@@ -460,7 +508,10 @@ mod tests {
         let mut parser = MessageParser::new_for_test();
 
         // When/Then
-        if let Some(_) = parser.parse_line(&input) {
+        if let Some(_) = parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             panic!("parsed a message when the line should be ignored")
         }
     }
@@ -474,7 +525,10 @@ mod tests {
         let mut parser = MessageParser::new_for_test();
 
         // When
-        if let None = parser.parse_line(&input) {
+        if let None = parser.parse_line(
+            &input,
+            String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+        ) {
             // Then
             if let Some(uuid) = parser.cached_uuids().get("EbonJaeger") {
                 if uuid != "7f7c909b-24f1-49a4-817f-baa4f4973980" {
