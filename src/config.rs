@@ -16,13 +16,7 @@ pub struct DiscordConfig {
     channel_id: u64,
     allow_mentions: bool,
     use_member_nicks: bool,
-    webhook_config: WebhookConfig,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct WebhookConfig {
-    url: String,
+    webhook_url: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -68,14 +62,8 @@ impl Default for DiscordConfig {
             channel_id: 0,
             allow_mentions: true,
             use_member_nicks: false,
-            webhook_config: WebhookConfig::default(),
+            webhook_url: String::new(),
         }
-    }
-}
-
-impl Default for WebhookConfig {
-    fn default() -> Self {
-        WebhookConfig { url: String::new() }
     }
 }
 
@@ -126,7 +114,7 @@ impl RootConfig {
     }
 
     pub fn webhook_url(&self) -> String {
-        self.discord_config.webhook_config.url.clone()
+        self.discord_config.webhook_url.clone()
     }
 
     pub fn get_rcon_addr(&self) -> String {
@@ -205,6 +193,6 @@ impl RootConfig {
     }
 
     pub fn set_webhook_url(&mut self, value: String) {
-        self.discord_config.webhook_config.url = value;
+        self.discord_config.webhook_url = value;
     }
 }
