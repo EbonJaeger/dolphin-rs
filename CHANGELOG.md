@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.5.0] - 2021-03-27
+
 ### Added
 
 - Configuration commands to change various parts of the bot's config. See `!help config` for a list of subcommands
@@ -96,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.4.0...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...master
+[v2.5.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.4.0...v2.5.0
 [v2.4.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.3.0...v2.4.0
 [v2.3.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.1.1...v2.2.0
