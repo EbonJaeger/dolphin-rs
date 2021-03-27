@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Config option for bot token
   - This now uses the environment variable named `DISCORD_TOKEN`
+- Config option to enable webhooks
+  - Webhooks will automatically be enabled if there is a URL set
 
 ## [v2.4.0] - 2021-03-08
 

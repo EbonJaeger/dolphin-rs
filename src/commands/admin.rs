@@ -452,7 +452,7 @@ pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResul
 }
 
 #[command]
-#[description = "Set the Discord webhook URL to post messages to"]
+#[description = "Set the Discord webhook URL to post messages to. To disable, do `!config webhook none`"]
 pub async fn webhook(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let config_lock = {
         let config_read = ctx.data.read().await;
@@ -473,7 +473,7 @@ pub async fn webhook(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
             Regex::new(r"^https://discord.com/api/webhooks/.*/.*$").unwrap();
     }
 
-    if !WEBHOOK_REGEX.is_match(&webhook_url).unwrap() {
+    if !WEBHOOK_REGEX.is_match(&webhook_url).unwrap() && webhook_url != "none" {
         send_error_embed(
             &ctx,
             &msg,
@@ -487,7 +487,12 @@ pub async fn webhook(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
     // Update the config inside a block so we release locks as soon as possible
     {
         let mut c = config_lock.write().await;
-        c.set_webhook_url(webhook_url.clone());
+        if webhook_url == "none" {
+            c.set_webhook_url(String::new());
+        } else {
+            c.set_webhook_url(webhook_url.clone());
+        }
+
         save_config(ctx, c.clone()).await?;
     }
 
