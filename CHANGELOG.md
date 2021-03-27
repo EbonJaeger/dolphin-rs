@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.5.1] - 2021-03-27
+
+### Changed
+
+- Only ignore webhook messages if they are from the configured webhook
+
 ## [v2.5.0] - 2021-03-27
 
 ### Added
@@ -98,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...master
+[v2.5.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...v2.5.1
 [v2.5.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.4.0...v2.5.0
 [v2.4.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.3.0...v2.4.0
 [v2.3.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.2.0...v2.3.0

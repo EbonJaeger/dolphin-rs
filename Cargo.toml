@@ -1,6 +1,6 @@
 [package]
 name = "dolphin-rs"
-version = "2.5.0"
+version = "2.5.1"
 authors = ["Evan Maddock <maddock.evan@vivaldi.net>"]
 edition = "2018"
 
