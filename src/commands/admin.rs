@@ -15,7 +15,9 @@ use crate::{config::RootConfig, ConfigContainer, ConfigPathContainer};
 use super::embed::send_error_embed;
 
 #[command]
-#[sub_commands(channel, mentions, nicks, rconaddr, rconport, rconpass, log, chatregex)]
+#[sub_commands(
+    channel, mentions, nicks, rconaddr, rconport, rconpass, log, chatregex, webhook
+)]
 #[required_permissions("ADMINISTRATOR")]
 pub async fn config(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
     let reply = msg.channel_id.send_message(&ctx, |m| {
@@ -431,6 +433,71 @@ pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResul
             m.embed(|e| {
                 e.title("Configuration Changed")
                     .description("Minecraft chat regex updated!")
+                    .color(Colour::DARK_GREEN);
+
+                e
+            })
+            .reference_message(msg);
+
+            m
+        })
+        .await?;
+
+    // Wait 30 seconds and delete the command and reply
+    sleep(Duration::new(30, 0)).await;
+    reply.delete(&ctx).await?;
+    msg.delete(&ctx).await?;
+
+    Ok(())
+}
+
+#[command]
+#[description = "Set the Discord webhook URL to post messages to"]
+pub async fn webhook(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let config_lock = {
+        let config_read = ctx.data.read().await;
+
+        config_read
+            .get::<ConfigContainer>()
+            .cloned()
+            .expect("expected config container in TypeMap")
+            .clone()
+    };
+
+    let webhook_url = args.single::<String>()?;
+
+    // Validate the given webhook URL; there's no point in
+    // updating the config to a value that we know won't work
+    lazy_static! {
+        static ref WEBHOOK_REGEX: Regex =
+            Regex::new(r"^https://discord.com/api/webhooks/.*/.*$").unwrap();
+    }
+
+    if !WEBHOOK_REGEX.is_match(&webhook_url).unwrap() {
+        send_error_embed(
+            &ctx,
+            &msg,
+            "Your input does not match the format for a Discord Webhook URL",
+            "E_INVALID_WEBHOOK",
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Update the config inside a block so we release locks as soon as possible
+    {
+        let mut c = config_lock.write().await;
+        c.set_webhook_url(webhook_url.clone());
+        save_config(ctx, c.clone()).await?;
+    }
+
+    // Send a message letting the user know that the config updated
+    let reply = msg
+        .channel_id
+        .send_message(&ctx, |m| {
+            m.embed(|e| {
+                e.title("Configuration Changed")
+                    .description("Webhook URL updated!")
                     .color(Colour::DARK_GREEN);
 
                 e

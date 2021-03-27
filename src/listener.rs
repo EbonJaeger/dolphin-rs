@@ -288,10 +288,9 @@ async fn send_to_discord(
     };
 
     // Check if we should use a webhook to post the message
-    if config_lock.read().await.webhook_enabled() {
-        let url = &config_lock.read().await.webhook_url();
-
-        post_to_webhook(Arc::clone(&ctx), message, url).await?
+    let webhook_url = config_lock.read().await.webhook_url();
+    if !webhook_url.is_empty() {
+        post_to_webhook(Arc::clone(&ctx), message, &webhook_url).await?
     } else {
         // Send the message to the channel
         let final_msg = match message.source {

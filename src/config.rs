@@ -22,7 +22,6 @@ pub struct DiscordConfig {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WebhookConfig {
-    enabled: bool,
     url: String,
 }
 
@@ -76,10 +75,7 @@ impl Default for DiscordConfig {
 
 impl Default for WebhookConfig {
     fn default() -> Self {
-        WebhookConfig {
-            enabled: false,
-            url: String::new(),
-        }
+        WebhookConfig { url: String::new() }
     }
 }
 
@@ -127,10 +123,6 @@ impl RootConfig {
 
     pub fn use_member_nicks(&self) -> bool {
         self.discord_config.use_member_nicks
-    }
-
-    pub fn webhook_enabled(&self) -> bool {
-        self.discord_config.webhook_config.enabled
     }
 
     pub fn webhook_url(&self) -> String {
@@ -210,5 +202,9 @@ impl RootConfig {
 
     pub fn set_chat_regex(&mut self, value: String) {
         self.minecraft_config.chat_regex = value;
+    }
+
+    pub fn set_webhook_url(&mut self, value: String) {
+        self.discord_config.webhook_config.url = value;
     }
 }
