@@ -1,6 +1,6 @@
 use crate::config::RootConfig;
 use crate::errors::{Error, Result};
-use crate::listener::{Listener, LogTailer, Webserver};
+use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
 use crate::markdown;
 use rcon::Connection;
 use serenity::{
@@ -51,8 +51,12 @@ impl EventHandler for Handler {
         let bot = ctx.cache.current_user().await;
 
         // Ignore messages that are from ourselves
-        if msg.author.id == bot.id || msg.webhook_id.is_some() {
-            debug!("event_handler:message: skipping message from ourselves or webhook");
+        let webhook_url = self.config_lock.read().await.webhook_url();
+        let webhook_id = split_webhook_url(&webhook_url).unwrap_or_default().0;
+        if msg.author.id == bot.id
+            || (msg.webhook_id.is_some() && msg.webhook_id.unwrap() == webhook_id)
+        {
+            debug!("event_handler:message: skipping message from ourselves or our webhook");
             return;
         }
 

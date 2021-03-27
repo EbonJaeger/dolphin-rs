@@ -308,7 +308,21 @@ async fn send_to_discord(
 }
 
 /// Use Regex to split the configured webhook URL into an ID and a token.
-fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
+/// If the input url doesn't match the regex, [None] will be returned. No
+/// validation is done to see if the webhook URL is actually a valid and
+/// active Discord webhook.
+///
+/// # Examples
+///
+/// ```rust
+/// let webhook_url = String::from("https://discord.com/api/webhooks/12345/67890");
+/// let webhook_parts = split_webhook_url(&webhook_url);
+///
+/// assert!(webhook_parts.is_some());
+/// assert_eq!(webhook_parts.unwrap().0, 12345);
+/// assert_eq!(webhook_parts.unwrap().1, 67890);
+/// ```
+pub fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
     // Only compile the regex once, since this is expensive
     lazy_static! {
         static ref WEBHOOK_REGEX: Regex =
