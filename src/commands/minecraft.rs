@@ -1,4 +1,5 @@
 use crate::{errors::Result, ConfigContainer};
+use fancy_regex::Regex;
 use rcon::Connection;
 use serenity::{
     framework::standard::{macros::command, Args, CommandResult},
@@ -42,7 +43,7 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<()> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();
-    let player_list = parts.next().unwrap();
+    let player_list = parts.next().unwrap_or("");
 
     let (online, max) = get_player_counts(count_line);
 
@@ -78,24 +79,29 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<()> {
 }
 
 fn get_player_counts(text: &str) -> (i32, i32) {
-    let parts = text.split_whitespace();
-    let mut got_online = false;
-    let mut online = -1;
-    let mut max = -1;
-
-    for part in parts {
-        let num = match part.parse::<i32>() {
-            Ok(num) => num,
-            Err(_) => continue,
-        };
-
-        if got_online {
-            max = num;
-        } else {
-            online = num;
-            got_online = true;
-        }
+    lazy_static! {
+        static ref COUNT_REGEX: Regex = Regex::new(r"(?P<online>\d+)\D+(?P<max>\d+)").unwrap();
     }
 
-    (online, max)
+    match COUNT_REGEX.captures(&text) {
+        Ok(result) => match result {
+            Some(captures) => {
+                let online = captures
+                    .get(1)
+                    .unwrap()
+                    .as_str()
+                    .parse::<i32>()
+                    .expect("could not parse match as a number");
+                let max = captures
+                    .get(2)
+                    .unwrap()
+                    .as_str()
+                    .parse::<i32>()
+                    .expect("could not parse match as a number");
+                (online, max)
+            }
+            None => (-1, -1),
+        },
+        Err(_) => (-1, -1),
+    }
 }
