@@ -341,7 +341,7 @@ dependencies = [
 
 [[package]]
 name = "dolphin-rs"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "clap",
  "confy",

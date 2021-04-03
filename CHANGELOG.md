@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.5.2] - 2021-04-03
+
+### Added
+
+- Support for different versions of the `list` command output
+
 ## [v2.5.1] - 2021-03-27
 
 ### Changed
@@ -104,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...master
+[v2.5.2]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...v2.5.2
 [v2.5.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...v2.5.1
 [v2.5.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.4.0...v2.5.0
 [v2.4.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.3.0...v2.4.0
