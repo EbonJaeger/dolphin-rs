@@ -143,7 +143,7 @@ impl MessageParser {
             let parts: Vec<&str> = line.split(' ').collect();
             let name = parts[3];
             let uuid = parts[5];
-            &self
+            let _ = &self
                 .cached_uuids
                 .insert(String::from(name), String::from(uuid));
             return None;
@@ -174,7 +174,7 @@ impl MessageParser {
                             Some(uuid) => uuid.to_string(),
                             None => match uuid_from_name(name.to_string()).await {
                                 Ok(resp) => {
-                                    &self.cached_uuids.insert(resp.name, resp.id.clone());
+                                    let _ = &self.cached_uuids.insert(resp.name, resp.id.clone());
                                     resp.id
                                 }
                                 Err(e) => {

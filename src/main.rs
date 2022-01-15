@@ -6,14 +6,13 @@ mod listener;
 mod markdown;
 mod minecraft;
 
-#[macro_use]
 extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate pipeline;
 
-use clap::{App, Arg};
+use clap::{App, Arg, crate_version};
 use commands::{admin::*, general::*, hooks::after, minecraft::*};
 use config::RootConfig;
 use discord::Handler;
