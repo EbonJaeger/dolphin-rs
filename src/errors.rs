@@ -8,7 +8,7 @@ use std::{
 
 use rcon::Error as RconError;
 use reqwest::Error as ReqwestError;
-use serenity::Error as DiscordError;
+use serenity::prelude::SerenityError as DiscordError;
 use tracing::instrument;
 
 /// A common result type between many of the fuctions in this application.

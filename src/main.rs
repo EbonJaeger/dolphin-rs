@@ -12,8 +12,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate pipeline;
 
-use clap::{App, Arg, crate_version};
-use commands::{admin::*, general::*, hooks::after, minecraft::*};
+use clap::{crate_version, App, Arg};
+use commands::{admin::*, general::*, hooks::after};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
@@ -42,12 +42,6 @@ impl TypeMapKey for ConfigPathContainer {
 #[only_in(guilds)]
 #[commands(config)]
 struct Admin;
-
-#[group]
-#[description = "Commands to interact with the Minecraft server."]
-#[only_in(guilds)]
-#[commands(list)]
-struct Minecraft;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -115,6 +109,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         process::exit(0);
     }
 
+    let application_id: u64 = env::var("DISCORD_APPLICATION_ID")
+        .expect("Expect a Discord application ID in the environment")
+        .parse()
+        .expect("Application ID is not a valid ID");
+
     let handler = Handler::new(Arc::clone(&cfg_lock));
 
     let http = Http::new_with_token(&bot_token);
@@ -134,11 +133,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .configure(|c| c.owners(owners).prefix("!"))
         .help(&SHOW_HELP)
         .group(&ADMIN_GROUP)
-        .group(&MINECRAFT_GROUP)
         .after(after);
 
     // Create the Discord client
     let mut client = Client::builder(&bot_token)
+        .application_id(application_id)
         .framework(framework)
         .event_handler(handler)
         .intents(

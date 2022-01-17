@@ -1,17 +1,16 @@
+use std::time::Duration;
+
 use crate::{errors::Result, ConfigContainer};
 use fancy_regex::Regex;
 use rcon::Connection;
 use serenity::{
-    framework::standard::{macros::command, Args, CommandResult},
-    model::prelude::*,
+    model::{interactions::application_command::ApplicationCommandInteraction, prelude::*},
     prelude::*,
     utils::Colour,
 };
-use tokio::time::{sleep, Duration};
+use tokio::time::sleep;
 
-#[command]
-#[description = "List all online players on the Minecraft server."]
-pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResult {
+pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> Result<()> {
     let config = ctx
         .data
         .read()
@@ -34,12 +33,14 @@ pub async fn list(ctx: &Context, msg: &Message, mut _args: Args) -> CommandResul
         resp = conn.cmd("list").await?;
     }
 
-    send_reply(ctx, msg, resp).await?;
-
-    Ok(())
+    send_reply(&ctx, command, resp).await
 }
 
-async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<()> {
+async fn send_reply(
+    ctx: &Context,
+    command: ApplicationCommandInteraction,
+    resp: String,
+) -> Result<()> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();
@@ -47,33 +48,34 @@ async fn send_reply(ctx: &Context, msg: &Message, resp: String) -> Result<()> {
 
     let (online, max) = get_player_counts(count_line);
 
-    // Create and send the embed
-    let reply = msg
-        .channel_id
-        .send_message(&ctx.http, |m| {
-            m.embed(|e| {
-                e.title("Online Players")
-                    .description(format!(
-                        "There are **{}** out of **{}** players online.",
-                        online, max
-                    ))
-                    .color(Colour::BLUE);
+    // Respond to the interaction
+    command
+        .create_interaction_response(&ctx.http, |response| {
+            response
+                .kind(InteractionResponseType::ChannelMessageWithSource)
+                .interaction_response_data(|data| {
+                    data.create_embed(|e| {
+                        e.title("Online Players")
+                            .description(format!(
+                                "There are **{}** out of **{}** players online.",
+                                online, max
+                            ))
+                            .color(Colour::BLUE);
 
-                if !player_list.is_empty() {
-                    e.footer(|f| f.text(player_list));
-                }
+                        if !player_list.is_empty() {
+                            e.footer(|f| f.text(player_list));
+                        }
 
-                e
-            })
-            .reference_message(msg);
-
-            m
+                        e
+                    })
+                })
         })
         .await?;
 
     sleep(Duration::new(30, 0)).await;
-    reply.delete(&ctx.http).await?;
-    msg.delete(&ctx.http).await?;
+    command
+        .delete_original_interaction_response(&ctx.http)
+        .await?;
 
     Ok(())
 }

@@ -1,8 +1,10 @@
+use crate::commands::minecraft::list;
 use crate::config::RootConfig;
 use crate::errors::{Error, Result};
 use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
 use crate::markdown;
 use rcon::Connection;
+use serenity::model::interactions::{Interaction, InteractionResponseType};
 use serenity::{
     async_trait,
     model::{
@@ -39,6 +41,32 @@ impl Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::ApplicationCommand(command) = interaction {
+            match command.data.name.as_str() {
+                "list" => {
+                    if let Err(e) = list(ctx, command).await {
+                        eprintln!("Error performing 'list' command: {}", e);
+                    }
+                }
+                _ => {
+                    if let Err(e) = command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message.content("Unknown command")
+                                })
+                        })
+                        .await
+                    {
+                        eprintln!("Error sending interaction response: {}", e);
+                    }
+                }
+            };
+        }
+    }
+
     async fn message(&self, ctx: Context, msg: Message) {
         let configured_id = self.config_lock.read().await.get_channel_id();
 
@@ -141,6 +169,20 @@ impl EventHandler for Handler {
         let guild_id = self.guild_id.load(Ordering::Relaxed);
         let guild_id = Arc::new(GuildId(guild_id));
         let log_path = config_lock.read().await.get_log_path();
+
+        // Setup command interactions
+        match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+            commands.create_application_command(|command| {
+                command
+                    .name("list")
+                    .description("List all players on the Minecraft server")
+            })
+        })
+        .await
+        {
+            Ok(_) => info!("Minecraft commands registered"),
+            Err(e) => error!("Error registering Minecraft commands: {}", e),
+        };
 
         // Only do stuff if we're not already running
         if !self.is_watching.load(Ordering::Relaxed) {
