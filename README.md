@@ -20,7 +20,7 @@ Create a Discord bot [here](https://discord.com/developers/applications/me).
 
 In the Bot tab on the left, you **must** enable both the Presense Intent and the Server Members Intent. These are required so Minecraft players can tag Discord users.
 
-To start the bot, it has to know the Bot Token, shown on your bot's Discord page. Dolphin uses an environment variable named `DISCORD_TOKEN` for this. You can set this variable automatically; look up guides on how to do this for your particular operating system. Or, you could set it when you run the Dolphin program, typically: `DISCORD_TOKEN=<paste the token here> ./dolphin-rs`
+To start the bot, it has to know the Bot Token, shown on your bot's Discord page. It also needs the Application ID to create the command interactions; this is found on the bot's General Information page. Dolphin uses environment variables named `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` for this. You can set this variable automatically; look up guides on how to do this for your particular operating system. Or, you could set it when you run the Dolphin program, typically: `DISCORD_TOKEN=<paste the token here> DISCORD_APPLICATION_ID=<paste ID here> ./dolphin-rs`
 
 Next, invite the bot to your Discord server using this link, replacing the Client ID with your bot's ID:
 

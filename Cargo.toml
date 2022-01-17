@@ -39,4 +39,3 @@ features = ["rt-multi-thread", "sync", "time"]
 [profile.dev]
 # Let's speed up compilation and maybe reduce dev binary size a bunch.
 debug = 0
-
