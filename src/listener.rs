@@ -331,7 +331,7 @@ pub fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
 
     let mut ret = None;
 
-    if let Ok(Some(captures)) = WEBHOOK_REGEX.captures(&url) {
+    if let Ok(Some(captures)) = WEBHOOK_REGEX.captures(url) {
         if captures.len() != 3 {
             return None;
         }

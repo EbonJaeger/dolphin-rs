@@ -10,7 +10,7 @@ pub fn parse_blocks(content: &str) -> Vec<Block> {
     let mut blocks = vec![];
     let mut t = vec![];
 
-    match parse_block(&content) {
+    match parse_block(content) {
         // A block was found
         Some(block) => {
             // The current paragraph has ended, push it to the blocks Vec

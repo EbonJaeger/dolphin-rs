@@ -152,7 +152,7 @@ impl MessageParser {
         let chat_regex = Regex::new(&regex).unwrap();
 
         // Check if the line is a chat message
-        if chat_regex.is_match(&line).unwrap() {
+        if chat_regex.is_match(line).unwrap() {
             let captures = chat_regex
                 .captures(line)
                 .expect("line matched, but couldn't get captures")

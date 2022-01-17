@@ -244,10 +244,10 @@ pub async fn rconport(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
 
     let port = args.single::<i32>()?;
 
-    if port > 65535 || port < 1024 {
+    if !(1024..=65535).contains(&port) {
         send_error_embed(
-            &ctx,
-            &msg,
+            ctx,
+            msg,
             format!("Port '{}' not in range 1024-65535", port).as_str(),
             "E_INVALID_PORT",
         )
@@ -398,8 +398,8 @@ pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResul
     let regex = args.rest();
     if !regex.starts_with('`') || !regex.ends_with('`') {
         send_error_embed(
-            &ctx,
-            &msg,
+            ctx,
+            msg,
             "Regex string should be in a code block.\nTry adding a single ` to the start and end.",
             "E_PARSE_ERROR",
         )
@@ -408,10 +408,10 @@ pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResul
     }
     let regex = &regex[1..regex.len() - 1];
 
-    if let Err(err) = Regex::new(&regex) {
+    if let Err(err) = Regex::new(regex) {
         send_error_embed(
-            &ctx,
-            &msg,
+            ctx,
+            msg,
             format!("`{}` is not a valid Regex pattern.\nSee this for more information: https://docs.rs/regex/1.4.5/regex/#syntax", regex).as_str(),
             err.to_string(),
         )
@@ -422,7 +422,7 @@ pub async fn chatregex(ctx: &Context, msg: &Message, args: Args) -> CommandResul
     // Update the config inside a block so we release locks as soon as possible
     {
         let mut c = config_lock.write().await;
-        c.set_chat_regex(regex.clone().to_string());
+        c.set_chat_regex(regex.to_string());
         save_config(ctx, c.clone()).await?;
     }
 
@@ -475,8 +475,8 @@ pub async fn webhook(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
 
     if !WEBHOOK_REGEX.is_match(&webhook_url).unwrap() && webhook_url != "none" {
         send_error_embed(
-            &ctx,
-            &msg,
+            ctx,
+            msg,
             "Your input does not match the format for a Discord Webhook URL",
             "E_INVALID_WEBHOOK",
         )
@@ -531,7 +531,6 @@ async fn save_config(ctx: &Context, config: RootConfig) -> CommandResult {
             .get::<ConfigPathContainer>()
             .cloned()
             .expect("expected config path container in TypeMap")
-            .clone()
     };
 
     // Save the config to disk

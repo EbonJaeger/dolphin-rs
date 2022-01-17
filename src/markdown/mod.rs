@@ -30,28 +30,28 @@ impl Span {
     /// Minecraft doesn't have real closing tags; you have to completely
     /// reset the string and re-apply tags that should still be applied.
     /// Thus, we need to keep track of any open tags with a `Vec<String>`.
-    fn to_minecraft(&self, mut open_tags: &mut Vec<String>) -> String {
+    fn to_minecraft(&self, open_tags: &mut Vec<String>) -> String {
         match self {
             Span::Literal(ref c) => c.to_string(),
             Span::Text(ref content) => content.to_string(),
             Span::Emphasis(ref content) => {
                 open_tags.push(EMPHASIS_TAG.to_owned());
-                let span = format_spans(content, &mut open_tags);
+                let span = format_spans(content, open_tags);
                 format!("{}{}{}", EMPHASIS_TAG, span, RESET_TAG)
             }
             Span::Strong(ref content) => {
                 open_tags.push(STRONG_TAG.to_owned());
-                let span = format_spans(content, &mut open_tags);
+                let span = format_spans(content, open_tags);
                 format!("{}{}{}", STRONG_TAG, span, RESET_TAG)
             }
             Span::Strikethrough(ref content) => {
                 open_tags.push(STRIKETHROUGH_TAG.to_owned());
-                let span = format_spans(content, &mut open_tags);
+                let span = format_spans(content, open_tags);
                 format!("{}{}{}", STRIKETHROUGH_TAG, span, RESET_TAG)
             }
             Span::Underline(ref content) => {
                 open_tags.push(UNDERLINE_TAG.to_owned());
-                let span = format_spans(content, &mut open_tags);
+                let span = format_spans(content, open_tags);
                 format!("{}{}{}", UNDERLINE_TAG, span, RESET_TAG)
             }
         }
@@ -93,12 +93,12 @@ fn format_paragraph(elements: &[Span]) -> String {
 ///
 /// Minecraft doesn't have real closing tags; you have to completely
 /// reset the string and re-apply tags that should still be applied.
-fn format_spans(elements: &[Span], mut open_tags: &mut Vec<String>) -> String {
+fn format_spans(elements: &[Span], open_tags: &mut Vec<String>) -> String {
     let mut ret = String::new();
 
     for element in elements.iter() {
         // Append the element to the final String
-        let next = element.to_minecraft(&mut open_tags);
+        let next = element.to_minecraft(open_tags);
         ret.push_str(&next);
 
         // Check if we need to add any open tags

@@ -85,7 +85,7 @@ fn get_player_counts(text: &str) -> (i32, i32) {
         static ref COUNT_REGEX: Regex = Regex::new(r"(?P<online>\d+)\D+(?P<max>\d+)").unwrap();
     }
 
-    match COUNT_REGEX.captures(&text) {
+    match COUNT_REGEX.captures(text) {
         Ok(result) => match result {
             Some(captures) => {
                 let online = captures

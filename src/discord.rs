@@ -97,7 +97,7 @@ impl EventHandler for Handler {
         // Parse and convert any Markdown
         let mut marked = Vec::new();
         lines.for_each(|line| {
-            let blocks = markdown::parse(&line);
+            let blocks = markdown::parse(line);
             debug!("event_handler:message: parsed plocks: {:?}", blocks);
             marked.push(markdown::to_minecraft_format(&blocks));
         });

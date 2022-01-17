@@ -2,7 +2,7 @@ extern crate confy;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RootConfig {
     discord_config: DiscordConfig,
@@ -44,16 +44,6 @@ pub struct TellrawTemplates {
     username_template: String,
     attachment_template: String,
     message_template: String,
-}
-
-impl Default for RootConfig {
-    fn default() -> Self {
-        RootConfig {
-            discord_config: DiscordConfig::default(),
-            minecraft_config: MinecraftConfig::default(),
-            webserver_config: WebserverConfig::default(),
-        }
-    }
 }
 
 impl Default for DiscordConfig {
