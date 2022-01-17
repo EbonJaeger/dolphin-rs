@@ -9,11 +9,21 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+## [v2.6.0] - 2022-01-17
+
 ### Added
 
 - Support Discord servers that have Stage Channels (Serenity)
 - Prevent runtime errors because Discord added something that Serenity (the Discord Rust framework) doesn't implement yet (Serenity
 - Better error messages from Discord (Serenity)
+- Slash command support via interactions
+
+### Removed
+
+- Configuration commands
+  - I don't think these were ever really used, and if an interface was desired, I'd much rather just build a web interface that the user can set up.
+- Help command
+  - The help command is no longer needed since Discord commands have autocomplete.
 
 ## [v2.5.2] - 2021-04-03
 
@@ -118,7 +128,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.6.0...master
+[v2.6.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...v2.6.0
 [v2.5.2]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...v2.5.2
 [v2.5.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...v2.5.1
 [v2.5.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.4.0...v2.5.0
