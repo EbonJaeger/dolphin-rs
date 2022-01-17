@@ -180,8 +180,8 @@ impl EventHandler for Handler {
         })
         .await
         {
-            Ok(_) => info!("Minecraft commands registered"),
-            Err(e) => error!("Error registering Minecraft commands: {}", e),
+            Ok(_) => info!("Command interactions registered"),
+            Err(e) => error!("Error registering commands: {}", e),
         };
 
         // Only do stuff if we're not already running

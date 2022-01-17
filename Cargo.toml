@@ -30,7 +30,7 @@ features = ["derive"]
 [dependencies.serenity]
 version = "0.10.9"
 default-features = false
-features = ["client", "gateway", "cache", "rustls_backend", "model", "unstable_discord_api", "framework", "standard_framework"]
+features = ["client", "gateway", "cache", "rustls_backend", "model", "unstable_discord_api"]
 
 [dependencies.tokio]
 version = "1.15.0"

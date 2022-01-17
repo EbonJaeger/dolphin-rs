@@ -150,39 +150,39 @@ impl RootConfig {
         self.webserver_config.port
     }
 
-    pub fn set_discord_channel(&mut self, channel: u64) {
-        self.discord_config.channel_id = channel;
-    }
+    // pub fn set_discord_channel(&mut self, channel: u64) {
+    //     self.discord_config.channel_id = channel;
+    // }
 
-    pub fn set_allow_mentions(&mut self, value: bool) {
-        self.discord_config.allow_mentions = value;
-    }
+    // pub fn set_allow_mentions(&mut self, value: bool) {
+    //     self.discord_config.allow_mentions = value;
+    // }
 
-    pub fn set_use_nicks(&mut self, value: bool) {
-        self.discord_config.use_member_nicks = value;
-    }
+    // pub fn set_use_nicks(&mut self, value: bool) {
+    //     self.discord_config.use_member_nicks = value;
+    // }
 
-    pub fn set_rcon_addr(&mut self, value: String) {
-        self.minecraft_config.rcon_ip = value;
-    }
+    // pub fn set_rcon_addr(&mut self, value: String) {
+    //     self.minecraft_config.rcon_ip = value;
+    // }
 
-    pub fn set_rcon_port(&mut self, value: i32) {
-        self.minecraft_config.rcon_port = value;
-    }
+    // pub fn set_rcon_port(&mut self, value: i32) {
+    //     self.minecraft_config.rcon_port = value;
+    // }
 
-    pub fn set_rcon_password(&mut self, value: String) {
-        self.minecraft_config.rcon_password = value;
-    }
+    // pub fn set_rcon_password(&mut self, value: String) {
+    //     self.minecraft_config.rcon_password = value;
+    // }
 
-    pub fn set_log_file(&mut self, value: String) {
-        self.minecraft_config.log_file_path = value;
-    }
+    // pub fn set_log_file(&mut self, value: String) {
+    //     self.minecraft_config.log_file_path = value;
+    // }
 
-    pub fn set_chat_regex(&mut self, value: String) {
-        self.minecraft_config.chat_regex = value;
-    }
+    // pub fn set_chat_regex(&mut self, value: String) {
+    //     self.minecraft_config.chat_regex = value;
+    // }
 
-    pub fn set_webhook_url(&mut self, value: String) {
-        self.discord_config.webhook_url = value;
-    }
+    // pub fn set_webhook_url(&mut self, value: String) {
+    //     self.discord_config.webhook_url = value;
+    // }
 }

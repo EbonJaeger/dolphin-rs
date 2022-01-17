@@ -13,16 +13,13 @@ extern crate lazy_static;
 extern crate pipeline;
 
 use clap::{crate_version, App, Arg};
-use commands::{admin::*, general::*, hooks::after};
 use config::RootConfig;
 use discord::Handler;
 use serenity::{
     client::{bridge::gateway::GatewayIntents, validate_token},
-    framework::{standard::macros::group, StandardFramework},
-    http::Http,
     prelude::*,
 };
-use std::{collections::HashSet, env, error::Error, process, sync::Arc};
+use std::{env, error::Error, process, sync::Arc};
 use tracing::{info, warn, Level};
 
 struct ConfigContainer;
@@ -36,12 +33,6 @@ struct ConfigPathContainer;
 impl TypeMapKey for ConfigPathContainer {
     type Value = Arc<String>;
 }
-
-#[group]
-#[description = "Administrative commands for the bot."]
-#[only_in(guilds)]
-#[commands(config)]
-struct Admin;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -116,29 +107,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let handler = Handler::new(Arc::clone(&cfg_lock));
 
-    let http = Http::new_with_token(&bot_token);
-
-    // Get the bot's owner and ID
-    let (owners, _bot_id) = match http.get_current_application_info().await {
-        Ok(info) => {
-            let mut owners = HashSet::new();
-            owners.insert(info.owner.id);
-            (owners, info.id)
-        }
-        Err(e) => panic!("Could not access application info: {}", e),
-    };
-
-    // Create the framework
-    let framework = StandardFramework::new()
-        .configure(|c| c.owners(owners).prefix("!"))
-        .help(&SHOW_HELP)
-        .group(&ADMIN_GROUP)
-        .after(after);
-
     // Create the Discord client
     let mut client = Client::builder(&bot_token)
         .application_id(application_id)
-        .framework(framework)
         .event_handler(handler)
         .intents(
             GatewayIntents::GUILDS
