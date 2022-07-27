@@ -4,7 +4,9 @@ use crate::{errors::Result, ConfigContainer};
 use fancy_regex::Regex;
 use rcon::Connection;
 use serenity::{
-    model::{interactions::application_command::ApplicationCommandInteraction, prelude::*},
+    model::application::interaction::{
+        application_command::ApplicationCommandInteraction, InteractionResponseType,
+    },
     prelude::*,
     utils::Colour,
 };
@@ -54,7 +56,7 @@ async fn send_reply(
             response
                 .kind(InteractionResponseType::ChannelMessageWithSource)
                 .interaction_response_data(|data| {
-                    data.create_embed(|e| {
+                    data.embed(|e| {
                         e.title("Online Players")
                             .description(format!(
                                 "There are **{}** out of **{}** players online.",

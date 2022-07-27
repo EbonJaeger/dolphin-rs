@@ -10,10 +10,13 @@ use linemux::MuxedLines;
 use serenity::{
     async_trait,
     client::Context,
-    model::id::ChannelId,
-    prelude::{Mentionable, RwLock},
+    futures::StreamExt,
+    model::{
+        id::{ChannelId, GuildId},
+        mention::Mentionable,
+    },
+    prelude::RwLock,
 };
-use serenity::{futures::StreamExt, model::id::GuildId};
 use tracing::{debug, error, info, warn};
 use warp::Filter;
 
@@ -175,7 +178,7 @@ async fn post_to_webhook(ctx: Arc<Context>, message: MinecraftMessage, url: &str
             message.uuid.clone()
         ),
         // TODO: Do something better than a blind unwrap() here
-        Source::Server => ctx.cache.current_user().await.avatar_url().unwrap(),
+        Source::Server => ctx.cache.current_user().avatar_url().unwrap(),
     };
 
     // Post to the webhook
@@ -202,9 +205,9 @@ async fn post_to_webhook(ctx: Arc<Context>, message: MinecraftMessage, url: &str
 /// for names that have spaces in them, and really probably
 /// anything else.
 async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: String) -> String {
-    let mut ret = message.clone();
+    let mut ret = message;
 
-    if let Some(guild) = ctx.cache.guild(*guild_id).await {
+    if let Some(guild) = ctx.cache.guild(*guild_id) {
         let mut found_start = false;
         let mut start = 0;
         let mut end = 0;
@@ -230,8 +233,8 @@ async fn replace_mentions(ctx: Arc<Context>, guild_id: Arc<GuildId>, message: St
                         ret = ret.replace(mention, &member.mention().to_string());
                     } else if let Some(role) = guild.role_by_name(name) {
                         ret = ret.replace(mention, &role.mention().to_string());
-                    } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name).await {
-                        if let Some(channel) = ctx.cache.channel(id).await {
+                    } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name) {
+                        if let Some(channel) = ctx.cache.channel(id) {
                             ret = ret.replace(mention, &channel.mention().to_string());
                         }
                     } else {
@@ -272,7 +275,7 @@ async fn send_to_discord(
     // Get the correct name to use
     let name = match message.source {
         Source::Player => message.name.clone(),
-        Source::Server => ctx.cache.current_user().await.name,
+        Source::Server => ctx.cache.current_user().name,
     };
 
     let mut content = message.content.clone();

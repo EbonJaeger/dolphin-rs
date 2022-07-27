@@ -18,7 +18,13 @@ You should be able to just run the attached precompiled binary found on the [rel
 
 Create a Discord bot [here](https://discord.com/developers/applications/me).
 
-In the Bot tab on the left, you **must** enable both the Presense Intent and the Server Members Intent. These are required so Minecraft players can tag Discord users.
+In the Bot tab on the left, you **must** enable the following Privilaged Intents:
+
+- Presense Intent
+- Server Members Intent
+- Message Content Intent
+
+These are required so Minecraft players can tag Discord users, and so the bot can read Discord messages to send them to the Minecraft server.
 
 To start the bot, it has to know the Bot Token, shown on your bot's Discord page. It also needs the Application ID to create the command interactions; this is found on the bot's General Information page. Dolphin uses environment variables named `DISCORD_TOKEN` and `DISCORD_APPLICATION_ID` for this. You can set this variable automatically; look up guides on how to do this for your particular operating system. Or, you could set it when you run the Dolphin program, typically: `DISCORD_TOKEN=<paste the token here> DISCORD_APPLICATION_ID=<paste ID here> ./dolphin-rs`
 

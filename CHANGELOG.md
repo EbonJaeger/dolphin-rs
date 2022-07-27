@@ -9,6 +9,10 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+- Ask for Message Content intent
+- Disable bot token validation because it's broken upstream
+- Update Serenity to [0.11.4](https://github.com/serenity-rs/serenity/blob/current/CHANGELOG.md#0114---2022-07-19)
+
 ## [v2.6.0] - 2022-01-17
 
 ### Added

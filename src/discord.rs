@@ -4,10 +4,10 @@ use crate::errors::{Error, Result};
 use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
 use crate::markdown;
 use rcon::Connection;
-use serenity::model::interactions::{Interaction, InteractionResponseType};
 use serenity::{
     async_trait,
     model::{
+        application::interaction::{Interaction, InteractionResponseType},
         channel::Message,
         gateway::{Activity, Ready},
         id::GuildId,
@@ -76,7 +76,7 @@ impl EventHandler for Handler {
         }
 
         // Get our bot user
-        let bot = ctx.cache.current_user().await;
+        let bot = ctx.cache.current_user();
 
         // Ignore messages that are from ourselves
         let webhook_url = self.config_lock.read().await.webhook_url();
@@ -185,7 +185,8 @@ impl EventHandler for Handler {
         };
 
         // Only do stuff if we're not already running
-        if !self.is_watching.load(Ordering::Relaxed) {
+        let loaded = self.is_watching.load(Ordering::Relaxed);
+        if !loaded {
             // Create our listener and start waiting for messages
             let enable_webserver = config_lock.read().await.enable_webserver();
             if enable_webserver {
@@ -260,7 +261,7 @@ async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
         .collect();
 
     for id in channel_ids {
-        if let Some(channel) = ctx.cache.guild_channel(id).await {
+        if let Some(channel) = ctx.cache.guild_channel(id) {
             sanitized = sanitized.replace(
                 format!("<#{}>", id).as_str(),
                 format!("#{}", channel.name()).as_str(),
@@ -269,7 +270,7 @@ async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
     }
 
     for role_id in &msg.mention_roles {
-        if let Some(role) = role_id.to_role_cached(&ctx.cache).await {
+        if let Some(role) = role_id.to_role_cached(&ctx.cache) {
             sanitized = sanitized.replace(
                 &role_id.mention().to_string(),
                 format!("@{}", role.name).as_str(),
