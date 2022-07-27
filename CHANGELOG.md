@@ -9,6 +9,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+## [v2.7.0] - 2022-07-27
+
 - Ask for Message Content intent
 - Disable bot token validation because it's broken upstream
 - Update Serenity to [0.11.4](https://github.com/serenity-rs/serenity/blob/current/CHANGELOG.md#0114---2022-07-19)
@@ -132,7 +134,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.6.0...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.7.0...master
+[v2.7.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.6.0...v2.7.0
 [v2.6.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...v2.6.0
 [v2.5.2]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...v2.5.2
 [v2.5.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.0...v2.5.1
