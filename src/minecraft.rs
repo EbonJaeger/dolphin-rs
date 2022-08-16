@@ -10,11 +10,12 @@ use crate::errors::{Error, Result};
 pub struct MessageParser {
     cached_uuids: HashMap<String, String>,
     death_keywords: Vec<String>,
+    ignore_phrases: Vec<String>,
 }
 
 impl MessageParser {
     /// Create a new MessageParser to parse Minecraft log lines.
-    pub fn new(mut custom_keywords: Vec<String>) -> Self {
+    pub fn new(mut custom_keywords: Vec<String>, mut ignore_keywords: Vec<String>) -> Self {
         let mut death_keywords = vec![
             String::from(" shot"),
             String::from(" pricked"),
@@ -56,9 +57,16 @@ impl MessageParser {
 
         death_keywords.append(&mut custom_keywords);
 
+        let mut ignore_phrases = vec![String::from(
+            "Found that the dragon has been killed in this world already.",
+        )];
+
+        ignore_phrases.append(&mut ignore_keywords);
+
         Self {
             cached_uuids: HashMap::new(),
             death_keywords,
+            ignore_phrases,
         }
     }
 
@@ -104,6 +112,10 @@ impl MessageParser {
             String::from(" slain"),
         ];
 
+        let ignore_phrases = vec![String::from(
+            "Found that the dragon has been killed in this world already.",
+        )];
+
         let mut cached_uuids = HashMap::new();
         cached_uuids.insert(
             String::from("EbonJaeger"),
@@ -113,6 +125,7 @@ impl MessageParser {
         Self {
             cached_uuids,
             death_keywords,
+            ignore_phrases,
         }
     }
 
@@ -153,52 +166,7 @@ impl MessageParser {
 
         // Check if the line is a chat message
         if chat_regex.is_match(line).unwrap() {
-            let captures = chat_regex
-                .captures(line)
-                .expect("line matched, but couldn't get captures")
-                .expect("line matched, but captures not found");
-
-            // Use pattern matching to get the username and content
-            // of the message
-            match captures.name("username") {
-                Some(name) => match captures.name("content") {
-                    Some(content) => {
-                        let name = name.as_str();
-                        let content = content.as_str();
-
-                        // Get the player's UUID so we can get their skin later
-                        // If the player isn't in our cache, try to get their UUID
-                        // from the Mojang API using their username. If that fails,
-                        // fallback to a UUID to a Steve skin.
-                        let uuid = match self.cached_uuids.get(name) {
-                            Some(uuid) => uuid.to_string(),
-                            None => match uuid_from_name(name.to_string()).await {
-                                Ok(resp) => {
-                                    let _ = &self.cached_uuids.insert(resp.name, resp.id.clone());
-                                    resp.id
-                                }
-                                Err(e) => {
-                                    error!(
-                                        "error getting UUID for name '{}': {}",
-                                        name.to_string(),
-                                        e
-                                    );
-                                    String::from("c06f8906-4c8a-4911-9c29-ea1dbd1aab82")
-                                }
-                            },
-                        };
-
-                        Some(MinecraftMessage {
-                            name: name.to_string(),
-                            content: content.to_string(),
-                            source: Source::Player,
-                            uuid,
-                        })
-                    }
-                    None => None,
-                },
-                None => None,
-            }
+            self.try_parse_chat(chat_regex, line).await
         } else if line.contains("joined the game") || line.contains("left the game") {
             if line.contains("left the game") {
                 // Leave message, so remove this player from the cache
@@ -241,22 +209,90 @@ impl MessageParser {
                 uuid: String::new(),
             })
         } else {
-            // Check if the line is a player death message
-            for word in &self.death_keywords {
-                if line.contains(word.as_str())
-                    && line != "Found that the dragon has been killed in this world already."
-                {
-                    return Some(MinecraftMessage {
-                        name: String::new(),
-                        content: format!(":skull: {}", line),
-                        source: Source::Server,
-                        uuid: String::new(),
-                    });
+            self.try_parse_death(line)
+        }
+    }
+
+    /// Try to parse a line as a chat message.
+    ///
+    /// The line will be split into two parts: the username and
+    /// the message itself.
+    async fn try_parse_chat(&mut self, chat_regex: Regex, line: &str) -> Option<MinecraftMessage> {
+        let captures = chat_regex
+            .captures(line)
+            .expect("line matched, but couldn't get captures")
+            .expect("line matched, but captures not found");
+
+        let name = captures
+            .name("username")
+            .expect("log message matched chat regex, but there's no username")
+            .as_str();
+
+        let content = captures
+            .name("content")
+            .expect("log message matched chat regex, but there's no content")
+            .as_str();
+
+        let uuid = self.get_player_uuid(name).await;
+
+        Some(MinecraftMessage {
+            name: name.to_string(),
+            content: content.to_string(),
+            source: Source::Player,
+            uuid,
+        })
+    }
+
+    /// Get the player's UUID so we can get their skin later
+    /// If the player isn't in our cache, try to get their UUID
+    /// from the Mojang API using their username. If that fails,
+    /// fallback to a UUID to a Steve skin.
+    async fn get_player_uuid(&mut self, name: &str) -> String {
+        match self.cached_uuids.get(name) {
+            Some(uuid) => uuid.to_string(),
+            None => match uuid_from_name(name.to_string()).await {
+                Ok(resp) => {
+                    let _ = &self.cached_uuids.insert(resp.name, resp.id.clone());
+                    resp.id
                 }
+                Err(e) => {
+                    error!("error getting UUID for name '{}': {}", name.to_string(), e);
+                    String::from("c06f8906-4c8a-4911-9c29-ea1dbd1aab82")
+                }
+            },
+        }
+    }
+
+    /// Try to parse a death message from a log line.
+    ///
+    /// First, we will check if the line contains keywords that
+    /// should cause the message to be ignored.
+    ///
+    /// If we get past that, check if the message contains keywords
+    /// that are a part of death messages.
+    fn try_parse_death(&mut self, line: &str) -> Option<MinecraftMessage> {
+        for ignore_phrase in &self.ignore_phrases {
+            if line.contains(ignore_phrase.as_str()) {
+                return None;
+            }
+        }
+
+        let mut message: Option<MinecraftMessage> = None;
+
+        for word in &self.death_keywords {
+            if !line.contains(word.as_str()) {
+                continue;
             }
 
-            None
+            message = Some(MinecraftMessage {
+                name: String::new(),
+                content: format!(":skull: {}", line),
+                source: Source::Server,
+                uuid: String::new(),
+            });
         }
+
+        message
     }
 }
 

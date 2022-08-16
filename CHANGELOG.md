@@ -9,6 +9,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+- Add config option for a list of keywords to cause death messages to be ignored
+
 ## [v2.7.0] - 2022-07-27
 
 - Ask for Message Content intent

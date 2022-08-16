@@ -26,6 +26,7 @@ pub struct MinecraftConfig {
     rcon_port: i32,
     rcon_password: String,
     custom_death_keywords: Vec<String>,
+    death_ignore_keywords: Vec<String>,
     log_file_path: String,
     chat_regex: String,
     templates: TellrawTemplates,
@@ -64,6 +65,7 @@ impl Default for MinecraftConfig {
             rcon_port: 25575,
             rcon_password: String::new(),
             custom_death_keywords: Vec::new(),
+            death_ignore_keywords: Vec::new(),
             log_file_path: String::new(),
             chat_regex: String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
             templates: TellrawTemplates::default(),
@@ -120,6 +122,10 @@ impl RootConfig {
 
     pub fn get_death_keywords(&self) -> Vec<String> {
         self.minecraft_config.custom_death_keywords.clone()
+    }
+
+    pub fn get_death_ignore_keywords(&self) -> Vec<String> {
+        self.minecraft_config.death_ignore_keywords.clone()
     }
 
     pub fn get_log_path(&self) -> String {

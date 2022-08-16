@@ -41,19 +41,21 @@ pub trait Listener {
 /// # Examples
 ///
 /// ```rust
-/// let log_tailer = LogTailer::new("/home/minecraft/server/logs/latest.log", Vec::new());
+/// let log_tailer = LogTailer::new("/home/minecraft/server/logs/latest.log", Vec::new(), Vec::new());
 /// tokio::spawn(async move { log_tailer.listen(ctx.clone(), cfg.clone(), guild_id.clone()).await });
 /// ```
 pub struct LogTailer {
     path: String,
     custom_keywords: Vec<String>,
+    ignore_keywords: Vec<String>,
 }
 
 impl LogTailer {
-    pub fn new(path: String, custom_keywords: Vec<String>) -> Self {
+    pub fn new(path: String, custom_keywords: Vec<String>, ignore_keywords: Vec<String>) -> Self {
         LogTailer {
             path,
             custom_keywords,
+            ignore_keywords,
         }
     }
 }
@@ -67,7 +69,8 @@ impl Listener for LogTailer {
         guild_id: Arc<GuildId>,
     ) {
         info!("log_tailer:listen: using log file at '{}'", self.path);
-        let mut parser = MessageParser::new(self.custom_keywords.clone());
+        let mut parser =
+            MessageParser::new(self.custom_keywords.clone(), self.ignore_keywords.clone());
 
         // Create our log watcher
         let mut log_watcher = MuxedLines::new().unwrap();

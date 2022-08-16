@@ -199,7 +199,9 @@ impl EventHandler for Handler {
                 });
             } else {
                 let death_keywords = config_lock.read().await.get_death_keywords();
-                let log_tailer = LogTailer::new(log_path.to_string(), death_keywords);
+                let ignore_keywords = config_lock.read().await.get_death_ignore_keywords();
+                let log_tailer =
+                    LogTailer::new(log_path.to_string(), death_keywords, ignore_keywords);
                 tokio::spawn(async move {
                     log_tailer
                         .listen(ctx.clone(), config_lock.clone(), guild_id.clone())
