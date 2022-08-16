@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::{
     config::RootConfig,
-    errors::{Error, Result},
     minecraft::{MessageParser, MinecraftMessage, Source},
 };
+use anyhow::bail;
 use fancy_regex::Regex;
 use linemux::MuxedLines;
 use serenity::{
@@ -164,11 +164,15 @@ impl Listener for Webserver {
 /// If the message is from a player, we will execute the
 /// webhook with that player's head as the avatar and their
 /// in-game name as the username.
-async fn post_to_webhook(ctx: Arc<Context>, message: MinecraftMessage, url: &str) -> Result<()> {
+async fn post_to_webhook(
+    ctx: Arc<Context>,
+    message: MinecraftMessage,
+    url: &str,
+) -> anyhow::Result<()> {
     // Split the url into the webhook id an token
     let parts = match split_webhook_url(url) {
         Some(parts) => parts,
-        None => return Err(Error::Other("invalid webhook url")),
+        None => bail!("invalid webhook url"),
     };
 
     // Get the webhook using the id and token
@@ -185,16 +189,13 @@ async fn post_to_webhook(ctx: Arc<Context>, message: MinecraftMessage, url: &str
     };
 
     // Post to the webhook
-    if let Err(e) = webhook
+    webhook
         .execute(&ctx.http, false, |w| {
             w.avatar_url(avatar_url)
                 .username(message.name)
                 .content(message.content)
         })
-        .await
-    {
-        return Err(Error::Discord(e));
-    }
+        .await?;
 
     Ok(())
 }
@@ -269,7 +270,7 @@ async fn send_to_discord(
     config_lock: Arc<RwLock<RootConfig>>,
     guild_id: Arc<GuildId>,
     message: MinecraftMessage,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     debug!(
         "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
         message
@@ -305,9 +306,7 @@ async fn send_to_discord(
         };
 
         let id = config_lock.read().await.get_channel_id();
-        if let Err(e) = ChannelId(id).say(&ctx, final_msg).await {
-            return Err(Error::Discord(e));
-        }
+        ChannelId(id).say(&ctx, final_msg).await?;
     }
 
     Ok(())

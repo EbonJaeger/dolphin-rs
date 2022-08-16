@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{errors::Result, ConfigContainer};
+use crate::ConfigContainer;
 use fancy_regex::Regex;
 use rcon::Connection;
 use serenity::{
@@ -12,7 +12,7 @@ use serenity::{
 };
 use tokio::time::sleep;
 
-pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> Result<()> {
+pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> anyhow::Result<()> {
     let config = ctx
         .data
         .read()
@@ -42,7 +42,7 @@ async fn send_reply(
     ctx: &Context,
     command: ApplicationCommandInteraction,
     resp: String,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();

@@ -1,7 +1,6 @@
 mod commands;
 mod config;
 mod discord;
-mod errors;
 mod listener;
 mod markdown;
 mod minecraft;
@@ -12,6 +11,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate pipeline;
 
+use anyhow::Context;
 use clap::{crate_version, App, Arg};
 use config::RootConfig;
 use discord::Handler;
@@ -136,9 +136,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Connect to Discord and wait for events
     info!("Starting Discord client");
-    if let Err(e) = client.start().await {
-        eprintln!("Discord client error: {}", e);
-    }
+    client
+        .start()
+        .await
+        .with_context(|| "Failed to start Discord client")?;
 
     Ok(())
 }

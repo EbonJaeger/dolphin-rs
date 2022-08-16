@@ -1,6 +1,5 @@
 use crate::commands::minecraft::list;
 use crate::config::RootConfig;
-use crate::errors::{Error, Result};
 use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
 use crate::markdown;
 use rcon::Connection;
@@ -46,7 +45,7 @@ impl EventHandler for Handler {
             match command.data.name.as_str() {
                 "list" => {
                     if let Err(e) = list(ctx, command).await {
-                        eprintln!("Error performing 'list' command: {}", e);
+                        error!("Error performing 'list' command: {}", e);
                     }
                 }
                 _ => {
@@ -60,7 +59,7 @@ impl EventHandler for Handler {
                         })
                         .await
                     {
-                        eprintln!("Error sending interaction response: {}", e);
+                        error!("Error sending interaction response: {}", e);
                     }
                 }
             };
@@ -310,7 +309,7 @@ async fn send_to_minecraft(
     command: String,
     rcon_addr: String,
     rcon_password: String,
-) -> Result<()> {
+) -> anyhow::Result<String> {
     debug!("send_to_minecraft: {}", command);
 
     // Create RCON connection
@@ -320,10 +319,8 @@ async fn send_to_minecraft(
         .await?;
 
     // Send the command to Minecraft
-    match conn.cmd(&command).await {
-        Ok(_) => Ok(()),
-        Err(e) => Err(Error::Rcon(e)),
-    }
+    let resp = conn.cmd(&command).await?;
+    Ok(resp)
 }
 
 ///

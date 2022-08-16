@@ -4,8 +4,6 @@ use fancy_regex::Regex;
 use serde::Deserialize;
 use tracing::error;
 
-use crate::errors::{Error, Result};
-
 #[derive(Clone)]
 pub struct MessageParser {
     cached_uuids: HashMap<String, String>,
@@ -346,12 +344,10 @@ struct IdResponse {
     id: String,
 }
 
-async fn uuid_from_name(name: String) -> Result<IdResponse> {
+async fn uuid_from_name(name: String) -> anyhow::Result<IdResponse> {
     let url = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
-    match reqwest::get(url).await?.json::<IdResponse>().await {
-        Ok(resp) => Ok(resp),
-        Err(e) => Err(Error::Http(e)),
-    }
+    let resp = reqwest::get(url).await?.json::<IdResponse>().await?;
+    Ok(resp)
 }
 
 #[cfg(test)]
