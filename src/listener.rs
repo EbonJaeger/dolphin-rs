@@ -41,22 +41,16 @@ pub trait Listener {
 /// # Examples
 ///
 /// ```rust
-/// let log_tailer = LogTailer::new("/home/minecraft/server/logs/latest.log", Vec::new(), Vec::new());
+/// let log_tailer = LogTailer::new("/home/minecraft/server/logs/latest.log");
 /// tokio::spawn(async move { log_tailer.listen(ctx.clone(), cfg.clone(), guild_id.clone()).await });
 /// ```
 pub struct LogTailer {
     path: String,
-    custom_keywords: Vec<String>,
-    ignore_keywords: Vec<String>,
 }
 
 impl LogTailer {
-    pub fn new(path: String, custom_keywords: Vec<String>, ignore_keywords: Vec<String>) -> Self {
-        LogTailer {
-            path,
-            custom_keywords,
-            ignore_keywords,
-        }
+    pub fn new(path: String) -> Self {
+        LogTailer { path }
     }
 }
 
@@ -69,11 +63,14 @@ impl Listener for LogTailer {
         guild_id: Arc<GuildId>,
     ) {
         info!("log_tailer:listen: using log file at '{}'", self.path);
-        let mut parser =
-            MessageParser::new(self.custom_keywords.clone(), self.ignore_keywords.clone());
+        let config = config_lock.read().await;
+        let mut parser = MessageParser::new(
+            config.get_death_keywords(),
+            config.get_death_ignore_keywords(),
+        );
 
         // Create our log watcher
-        let mut log_watcher = MuxedLines::new().unwrap();
+        let mut log_watcher = MuxedLines::new().expect("Unable to create line muxer");
         log_watcher
             .add_file(&self.path)
             .await
@@ -81,24 +78,25 @@ impl Listener for LogTailer {
 
         info!("log_tailer:listen: started watching the Minecraft log file");
 
-        let regex = config_lock.read().await.get_chat_regex();
+        let regex = config.get_chat_regex();
 
         // Wait for the next line
         while let Some(Ok(line)) = log_watcher.next().await {
             // Check if the line is something we have to send
-            if let Some(message) = parser.parse_line(line.line(), regex.clone()).await {
-                let ctx = ctx.clone();
-                let config_lock = config_lock.clone();
-                let guild_id = guild_id.clone();
+            let message = match parser.parse_line(line.line(), regex.clone()).await {
+                Some(message) => message,
+                None => continue,
+            };
 
-                // Send the message to the Discord channel
-                if let Err(e) = send_to_discord(ctx, config_lock, guild_id, message).await {
-                    error!(
-                        "discord:handler: unable to send a message to Discord: {}",
-                        e
-                    );
-                }
-            }
+            // Send the message to the Discord channel
+            if let Err(e) =
+                send_to_discord(ctx.clone(), config_lock.clone(), guild_id.clone(), message).await
+            {
+                error!(
+                    "discord:handler: unable to send a message to Discord: {}",
+                    e
+                );
+            };
         }
     }
 }
@@ -276,6 +274,8 @@ async fn send_to_discord(
         message
     );
 
+    let config = config_lock.read().await;
+
     // Get the correct name to use
     let name = match message.source {
         Source::Player => message.name.clone(),
@@ -283,8 +283,8 @@ async fn send_to_discord(
     };
 
     let mut content = message.content.clone();
-    if config_lock.read().await.mentions_allowed() {
-        content = replace_mentions(Arc::clone(&ctx), guild_id, content).await;
+    if config.mentions_allowed() {
+        content = replace_mentions(ctx.clone(), guild_id, content).await;
     }
 
     let message = MinecraftMessage {
@@ -295,9 +295,9 @@ async fn send_to_discord(
     };
 
     // Check if we should use a webhook to post the message
-    let webhook_url = config_lock.read().await.webhook_url();
+    let webhook_url = config.webhook_url();
     if !webhook_url.is_empty() {
-        post_to_webhook(Arc::clone(&ctx), message, &webhook_url).await?
+        post_to_webhook(ctx.clone(), message, &webhook_url).await?
     } else {
         // Send the message to the channel
         let final_msg = match message.source {
@@ -305,7 +305,7 @@ async fn send_to_discord(
             Source::Server => message.content,
         };
 
-        let id = config_lock.read().await.get_channel_id();
+        let id = config.get_channel_id();
         ChannelId(id).say(&ctx, final_msg).await?;
     }
 
