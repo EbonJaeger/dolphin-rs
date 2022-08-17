@@ -1,7 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
+use anyhow::bail;
 use fancy_regex::Regex;
 use serde::Deserialize;
+use serenity::{
+    model::prelude::GuildId,
+    prelude::{Context, Mentionable},
+};
 use tracing::error;
 
 #[derive(Clone)]
@@ -338,6 +343,71 @@ pub struct MinecraftMessage {
     pub content: String,
     pub source: Source,
     pub uuid: String,
+}
+
+impl MinecraftMessage {
+    /// Looks for instances of mentions in a message and attempts
+    /// to replace that text with an actual Discord `@mention` (or
+    /// `#channel` in the case of a channel).
+    ///
+    /// It tries to match names using the full name and, in the
+    /// case of users, optionally their  descriptor. This works
+    /// for names that have spaces in them, and really probably
+    /// anything else.
+    pub fn replace_mentions(
+        &mut self,
+        ctx: Arc<Context>,
+        guild_id: Arc<GuildId>,
+    ) -> anyhow::Result<()> {
+        let guild = match ctx.cache.guild(*guild_id) {
+            Some(guild) => guild,
+            None => bail!("unable to get guild for id {}", *guild_id),
+        };
+
+        let mut found_start = false;
+        let mut start = 0;
+        let mut end = 0;
+        let mut replaced = self.content.clone();
+
+        for (i, c) in self.content.char_indices() {
+            if !found_start && (c == '@' || c == '#') {
+                found_start = true;
+                start = i;
+            } else if found_start && c == '#' {
+                end = i + 5;
+            } else if found_start && c == ' ' {
+                end = i;
+            } else if found_start && replaced.len() == i + 1 {
+                end = i + 1;
+            }
+
+            // Check to see if we have a mention
+            if found_start && end > 0 {
+                if let Some(mention) = replaced.get(start..end) {
+                    let name = &mention[1..];
+                    if let Some(member) = guild.member_named(name) {
+                        replaced = replaced.replace(mention, &member.mention().to_string());
+                    } else if let Some(role) = guild.role_by_name(name) {
+                        replaced = replaced.replace(mention, &role.mention().to_string());
+                    } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name) {
+                        if let Some(channel) = ctx.cache.channel(id) {
+                            replaced = replaced.replace(mention, &channel.mention().to_string());
+                        }
+                    } else {
+                        continue;
+                    }
+
+                    // If we got here, we found a mention, so reset everything
+                    start = 0;
+                    end = 0;
+                    found_start = false;
+                }
+            }
+        }
+
+        self.content = replaced;
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
