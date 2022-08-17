@@ -51,6 +51,7 @@ impl MessageParser {
             String::from(" pummeled"),
             String::from(" died"),
             String::from(" slain"),
+            String::from(" obliterated"),
         ];
 
         death_keywords.append(&mut custom_keywords);
@@ -108,6 +109,7 @@ impl MessageParser {
             String::from(" pummeled"),
             String::from(" died"),
             String::from(" slain"),
+            String::from(" obliterated"),
         ];
 
         let ignore_phrases = vec![String::from(
