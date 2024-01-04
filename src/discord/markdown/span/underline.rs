@@ -1,6 +1,6 @@
-use crate::markdown::span::parse_spans;
-use crate::markdown::Span;
-use crate::markdown::Span::Underline;
+use crate::discord::markdown::span::parse_spans;
+use crate::discord::markdown::Span;
+use crate::discord::markdown::Span::Underline;
 use fancy_regex::Regex;
 
 /// Parses any underline markdown tags in the given text.
