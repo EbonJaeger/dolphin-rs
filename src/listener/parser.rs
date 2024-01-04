@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::bail;
 use fancy_regex::Regex;
 use serde::Deserialize;
 use serenity::{
     model::prelude::GuildId,
     prelude::{Context, Mentionable},
 };
+use thiserror::Error;
 use tracing::error;
 
 #[derive(Clone)]
@@ -238,7 +238,10 @@ impl MessageParser {
             .expect("log message matched chat regex, but there's no content")
             .as_str();
 
-        let uuid = self.get_player_uuid(name).await;
+        let uuid = match self.get_player_uuid(name).await {
+            Ok(uuid) => uuid,
+            Err(_e) => String::from("c06f8906-4c8a-4911-9c29-ea1dbd1aab82"),
+        };
 
         Some(MinecraftMessage {
             name: name.to_string(),
@@ -252,18 +255,21 @@ impl MessageParser {
     /// If the player isn't in our cache, try to get their UUID
     /// from the Mojang API using their username. If that fails,
     /// fallback to a UUID to a Steve skin.
-    async fn get_player_uuid(&mut self, name: &str) -> String {
+    async fn get_player_uuid(&mut self, name: &str) -> Result<String, Error> {
         match self.cached_uuids.get(name) {
-            Some(uuid) => uuid.to_string(),
+            Some(uuid) => Ok(uuid.to_string()),
+            // Not found in cache, reach out to Mojang
             None => match uuid_from_name(name.to_string()).await {
                 Ok(resp) => {
+                    // Cache the found UUID
                     let _ = &self.cached_uuids.insert(resp.name, resp.id.clone());
-                    resp.id
+                    // Return the UUID
+                    Ok(resp.id)
                 }
-                Err(e) => {
-                    error!("error getting UUID for name '{}': {}", name.to_string(), e);
-                    String::from("c06f8906-4c8a-4911-9c29-ea1dbd1aab82")
-                }
+                Err(e) => match e {
+                    Error::Http(e) => Err(Error::Http(e)),
+                    _ => Err(Error::UUIDNotFound(name.to_string())),
+                },
             },
         }
     }
@@ -358,10 +364,10 @@ impl MinecraftMessage {
         &mut self,
         ctx: Arc<Context>,
         guild_id: Arc<GuildId>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), Error> {
         let guild = match ctx.cache.guild(*guild_id) {
             Some(guild) => guild,
-            None => bail!("unable to get guild for id {}", *guild_id),
+            None => return Err(Error::NoGuild(*guild_id)),
         };
 
         let mut found_start = false;
@@ -416,10 +422,22 @@ struct IdResponse {
     id: String,
 }
 
-async fn uuid_from_name(name: String) -> anyhow::Result<IdResponse> {
+async fn uuid_from_name(name: String) -> Result<IdResponse, Error> {
     let url = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
-    let resp = reqwest::get(url).await?.json::<IdResponse>().await?;
+    let resp: IdResponse = reqwest::get(url).await?.json().await?;
     Ok(resp)
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("http error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("no guild found for ID '{0}'")]
+    NoGuild(GuildId),
+
+    #[error("no UUID found for name '{0}'")]
+    UUIDNotFound(String),
 }
 
 #[cfg(test)]

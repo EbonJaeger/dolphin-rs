@@ -1,21 +1,24 @@
 use std::sync::Arc;
 
-use crate::{
-    config::RootConfig,
-    minecraft::{MessageParser, MinecraftMessage, Source},
-};
-use anyhow::bail;
+use crate::config::RootConfig;
 use fancy_regex::Regex;
 use linemux::MuxedLines;
 use serenity::{
+    all::WebhookId,
     async_trait,
+    builder::ExecuteWebhook,
     client::Context,
     futures::StreamExt,
     model::id::{ChannelId, GuildId},
     prelude::RwLock,
 };
+use thiserror::Error;
 use tracing::{debug, error, info};
 use warp::Filter;
+
+use self::parser::{MinecraftMessage, Source};
+
+mod parser;
 
 /// A Listener listens or watches for new messages from a Minecraft instance,
 /// depending on the implementation.
@@ -61,7 +64,7 @@ impl Listener for LogTailer {
     ) {
         info!("log_tailer:listen: using log file at '{}'", self.path);
         let config = config_lock.read().await;
-        let mut parser = MessageParser::new(
+        let mut parser = parser::MessageParser::new(
             config.get_death_keywords(),
             config.get_death_ignore_keywords(),
         );
@@ -163,15 +166,18 @@ async fn post_to_webhook(
     ctx: Arc<Context>,
     message: MinecraftMessage,
     url: &str,
-) -> anyhow::Result<()> {
+) -> Result<(), Error> {
     // Split the url into the webhook id an token
     let parts = match split_webhook_url(url) {
         Some(parts) => parts,
-        None => bail!("invalid webhook url"),
+        None => return Err(Error::Webhook(String::from("invalid webhook url"))),
     };
 
     // Get the webhook using the id and token
-    let webhook = ctx.http.get_webhook_with_token(parts.0, parts.1).await?;
+    let webhook = ctx
+        .http
+        .get_webhook_with_token(WebhookId::new(parts.0), parts.1)
+        .await?;
 
     // Get the avatar URL
     let avatar_url = match message.source {
@@ -183,14 +189,14 @@ async fn post_to_webhook(
         Source::Server => ctx.cache.current_user().avatar_url().unwrap(),
     };
 
+    // Build the post content
+    let content = ExecuteWebhook::new()
+        .avatar_url(avatar_url)
+        .username(message.name)
+        .content(message.content);
+
     // Post to the webhook
-    webhook
-        .execute(&ctx.http, false, |w| {
-            w.avatar_url(avatar_url)
-                .username(message.name)
-                .content(message.content)
-        })
-        .await?;
+    webhook.execute(&ctx.http, false, content).await?;
 
     Ok(())
 }
@@ -206,7 +212,7 @@ async fn send_to_discord(
     config_lock: Arc<RwLock<RootConfig>>,
     guild_id: Arc<GuildId>,
     mut message: MinecraftMessage,
-) -> anyhow::Result<()> {
+) -> Result<(), Error> {
     debug!(
         "dolphin:send_to_discord: received a message from a Minecraft instance: {:?}",
         message
@@ -216,13 +222,13 @@ async fn send_to_discord(
 
     // Set the source name to that of the bot if it's a server message
     if message.source == Source::Server {
-        message.name = ctx.cache.current_user().name;
+        message.name = ctx.cache.current_user().name.clone();
     }
 
     // Optionally replace mentions in the message
     if config.mentions_allowed() {
         if let Err(e) = message.replace_mentions(ctx.clone(), guild_id) {
-            bail!("error replacing mentions in message: {}", e);
+            return Err(Error::Parser(e));
         };
     }
 
@@ -238,7 +244,7 @@ async fn send_to_discord(
         };
 
         let id = config.get_channel_id();
-        ChannelId(id).say(&ctx, final_msg).await?;
+        ChannelId::new(id).say(&ctx, final_msg).await?;
     }
 
     Ok(())
@@ -280,6 +286,18 @@ pub fn split_webhook_url(url: &str) -> Option<(u64, &str)> {
     }
 
     ret
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Discord error: {0}")]
+    Discord(#[from] serenity::Error),
+
+    #[error("parser error: {0}")]
+    Parser(#[from] parser::Error),
+
+    #[error("webhook error: {0}")]
+    Webhook(String),
 }
 
 #[cfg(test)]
