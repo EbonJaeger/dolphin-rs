@@ -2,6 +2,8 @@ extern crate confy;
 
 use serde::{Deserialize, Serialize};
 
+pub mod container;
+
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RootConfig {
