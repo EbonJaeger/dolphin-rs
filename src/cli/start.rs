@@ -20,13 +20,17 @@ pub async fn handle(config_path: PathBuf, debug: bool) -> Result<(), Error> {
     };
 
     // Set up the tracing logger
-    tracing_subscriber::fmt()
+    let format = tracing_subscriber::fmt::format()
         .pretty()
         .compact()
-        .with_target(false)
-        .with_max_level(log_level)
-        .finish();
+        .with_target(false);
 
+    tracing_subscriber::fmt()
+        .event_format(format)
+        .with_max_level(log_level)
+        .init();
+
+    // Load the configuration file
     let config: RootConfig = confy::load_path(&config_path)?;
     confy::store_path(&config_path, &config)?;
     let config_lock = Arc::new(RwLock::new(config));
