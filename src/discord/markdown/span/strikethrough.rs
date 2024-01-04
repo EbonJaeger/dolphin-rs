@@ -1,6 +1,6 @@
-use crate::markdown::span::parse_spans;
-use crate::markdown::Span;
-use crate::markdown::Span::Strikethrough;
+use crate::discord::markdown::span::parse_spans;
+use crate::discord::markdown::Span;
+use crate::discord::markdown::Span::Strikethrough;
 use fancy_regex::Regex;
 
 /// Parses any strikethrough markdown tags in the given text.

@@ -1,6 +1,6 @@
 use super::Block;
 use super::Block::Blockquote;
-use crate::markdown::block::parse_blocks;
+use crate::discord::markdown::block::parse_blocks;
 
 pub fn parse_blockquote(line: &str) -> Option<Block> {
     if line.is_empty() || !line.starts_with("> ") {
