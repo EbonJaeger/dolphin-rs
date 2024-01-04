@@ -7,10 +7,13 @@ use crate::config::RootConfig;
 use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
 
 use rcon::Connection;
-use serenity::all::{ChannelId, Interaction};
 use serenity::builder::{CreateCommand, CreateInteractionResponseMessage};
 use serenity::gateway::ActivityData;
 use serenity::utils::parse_channel_mention;
+use serenity::{
+    all::{ChannelId, Interaction},
+    builder::CreateInteractionResponse,
+};
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Ready, id::GuildId},
@@ -54,10 +57,7 @@ impl EventHandler for Handler {
                     let response =
                         CreateInteractionResponseMessage::new().content("Unknown command");
                     if let Err(e) = command
-                        .create_response(
-                            &ctx.http,
-                            serenity::builder::CreateInteractionResponse::Message(response),
-                        )
+                        .create_response(&ctx.http, CreateInteractionResponse::Message(response))
                         .await
                     {
                         error!("Error sending interaction response: {}", e);
@@ -98,7 +98,7 @@ impl EventHandler for Handler {
         let mut marked = Vec::new();
         lines.for_each(|line| {
             let blocks = markdown::parse(line);
-            debug!("event_handler:message: parsed plocks: {:?}", blocks);
+            debug!("event_handler:message: parsed blocks: {:?}", blocks);
             marked.push(markdown::to_minecraft_format(&blocks));
         });
 
