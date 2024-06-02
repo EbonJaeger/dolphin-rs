@@ -1,24 +1,29 @@
-use crate::commands::minecraft::list;
-use crate::config::RootConfig;
-use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
-use crate::markdown;
-use rcon::Connection;
-use serenity::{
-    async_trait,
-    model::{
-        application::interaction::{Interaction, InteractionResponseType},
-        channel::Message,
-        gateway::{Activity, Ready},
-        id::GuildId,
-    },
-    prelude::*,
-    utils::parse_channel,
-};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Arc,
 };
+
+use crate::config::RootConfig;
+use crate::listener::{split_webhook_url, Listener, LogTailer, Webserver};
+
+use rcon::Connection;
+use serenity::builder::{CreateCommand, CreateInteractionResponseMessage};
+use serenity::gateway::ActivityData;
+use serenity::utils::parse_channel_mention;
+use serenity::{
+    all::{ChannelId, Interaction},
+    builder::CreateInteractionResponse,
+};
+use serenity::{
+    async_trait,
+    model::{channel::Message, gateway::Ready, id::GuildId},
+    prelude::*,
+};
+use thiserror::Error;
 use tracing::{debug, error, info};
+
+mod commands;
+mod markdown;
 
 const MAX_LINE_LENGTH: usize = 100;
 
@@ -41,22 +46,18 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
+        if let Interaction::Command(command) = interaction {
             match command.data.name.as_str() {
                 "list" => {
-                    if let Err(e) = list(ctx, command).await {
+                    if let Err(e) = commands::minecraft::list(ctx, command).await {
                         error!("Error performing 'list' command: {}", e);
                     }
                 }
                 _ => {
+                    let response =
+                        CreateInteractionResponseMessage::new().content("Unknown command");
                     if let Err(e) = command
-                        .create_interaction_response(&ctx.http, |response| {
-                            response
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| {
-                                    message.content("Unknown command")
-                                })
-                        })
+                        .create_response(&ctx.http, CreateInteractionResponse::Message(response))
                         .await
                     {
                         error!("Error sending interaction response: {}", e);
@@ -70,12 +71,12 @@ impl EventHandler for Handler {
         let configured_id = self.config_lock.read().await.get_channel_id();
 
         // Ignore messages that aren't from the configured channel
-        if msg.channel_id.as_u64() != &configured_id {
+        if msg.channel_id.get() != configured_id {
             return;
         }
 
         // Get our bot user
-        let bot = ctx.cache.current_user();
+        let bot = ctx.cache.current_user().clone();
 
         // Ignore messages that are from ourselves
         let webhook_url = self.config_lock.read().await.webhook_url();
@@ -97,7 +98,7 @@ impl EventHandler for Handler {
         let mut marked = Vec::new();
         lines.for_each(|line| {
             let blocks = markdown::parse(line);
-            debug!("event_handler:message: parsed plocks: {:?}", blocks);
+            debug!("event_handler:message: parsed blocks: {:?}", blocks);
             marked.push(markdown::to_minecraft_format(&blocks));
         });
 
@@ -146,8 +147,8 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, _ready: Ready) {
         info!("Connected to Discord");
-        ctx.set_activity(Activity::playing("Type !help for command list"))
-            .await;
+        let activity_data = ActivityData::playing("Type !help for command list");
+        ctx.set_activity(Some(activity_data));
     }
 
     ///
@@ -162,23 +163,18 @@ impl EventHandler for Handler {
         let config_lock = Arc::clone(&self.config_lock);
 
         if self.guild_id.load(Ordering::Relaxed) == 0 {
-            self.guild_id.store(guilds[0].0, Ordering::Relaxed);
+            self.guild_id.store(guilds[0].get(), Ordering::Relaxed);
         }
 
         let guild_id = self.guild_id.load(Ordering::Relaxed);
-        let guild_id = Arc::new(GuildId(guild_id));
+        let guild_id = Arc::new(GuildId::new(guild_id));
         let log_path = config_lock.read().await.get_log_path();
 
         // Setup command interactions
-        match GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands.create_application_command(|command| {
-                command
-                    .name("list")
-                    .description("List all players on the Minecraft server")
-            })
-        })
-        .await
-        {
+        let commands = vec![
+            CreateCommand::new("list").description("List all players on the Minecraft server")
+        ];
+        match guild_id.set_commands(&ctx.http, commands).await {
             Ok(_) => info!("Command interactions registered"),
             Err(e) => error!("Error registering commands: {}", e),
         };
@@ -253,13 +249,13 @@ async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
 
     // We have to do all this nonsense for channel mentions because
     // the Discord API devs are braindead.
-    let channel_ids: Vec<u64> = content
+    let channel_ids: Vec<ChannelId> = content
         .split_whitespace()
-        .filter_map(parse_channel)
+        .filter_map(parse_channel_mention)
         .collect();
 
     for id in channel_ids {
-        if let Some(channel) = ctx.cache.guild_channel(id) {
+        if let Some(channel) = ctx.cache.channel(id) {
             sanitized = sanitized.replace(
                 format!("<#{}>", id).as_str(),
                 format!("#{}", channel.name()).as_str(),
@@ -306,7 +302,7 @@ async fn send_to_minecraft(
     command: String,
     rcon_addr: String,
     rcon_password: String,
-) -> anyhow::Result<String> {
+) -> Result<String, Error> {
     debug!("send_to_minecraft: {}", command);
 
     // Create RCON connection
@@ -349,6 +345,12 @@ fn truncate_lines(lines: Vec<String>) -> Vec<String> {
     }
 
     truncated
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("rcon error: {0}")]
+    Rcon(#[from] rcon::Error),
 }
 
 #[cfg(test)]

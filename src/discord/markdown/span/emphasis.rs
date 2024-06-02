@@ -1,6 +1,6 @@
-use crate::markdown::span::parse_spans;
-use crate::markdown::Span;
-use crate::markdown::Span::Emphasis;
+use crate::discord::markdown::span::parse_spans;
+use crate::discord::markdown::Span;
+use crate::discord::markdown::Span::Emphasis;
 use fancy_regex::Regex;
 
 /// Parses any emphasis (italic) markdown tags in the given text.

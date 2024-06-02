@@ -1,18 +1,20 @@
 use std::time::Duration;
 
-use crate::ConfigContainer;
+use crate::config::container::ConfigContainer;
 use fancy_regex::Regex;
 use rcon::Connection;
 use serenity::{
-    model::application::interaction::{
-        application_command::ApplicationCommandInteraction, InteractionResponseType,
+    all::CommandInteraction,
+    builder::{
+        CreateEmbed, CreateEmbedFooter, CreateInteractionResponse, CreateInteractionResponseMessage,
     },
+    model::Colour,
     prelude::*,
-    utils::Colour,
 };
+use thiserror::Error;
 use tokio::time::sleep;
 
-pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> anyhow::Result<()> {
+pub async fn list(ctx: Context, command: CommandInteraction) -> Result<(), Error> {
     let config = ctx
         .data
         .read()
@@ -23,10 +25,11 @@ pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> anyho
 
     // Create RCON connection
     let addr = config.read().await.get_rcon_addr();
+    let password = config.read().await.get_rcon_password();
 
     let mut conn = Connection::builder()
         .enable_minecraft_quirks(true)
-        .connect(addr, config.read().await.get_rcon_password().as_str())
+        .connect(addr, password.as_str())
         .await?;
 
     // Send the `list` command to the Minecraft server
@@ -38,11 +41,7 @@ pub async fn list(ctx: Context, command: ApplicationCommandInteraction) -> anyho
     send_reply(&ctx, command, resp).await
 }
 
-async fn send_reply(
-    ctx: &Context,
-    command: ApplicationCommandInteraction,
-    resp: String,
-) -> anyhow::Result<()> {
+async fn send_reply(ctx: &Context, command: CommandInteraction, resp: String) -> Result<(), Error> {
     // Parse the response
     let mut parts = resp.split(':');
     let count_line = parts.next().unwrap();
@@ -51,33 +50,23 @@ async fn send_reply(
     let (online, max) = get_player_counts(count_line);
 
     // Respond to the interaction
+    let embed = CreateEmbed::new()
+        .title("Online Players")
+        .description(format!(
+            "There are **{}** out of **{}** players online.",
+            online, max
+        ))
+        .color(Colour::BLUE)
+        .footer(CreateEmbedFooter::new(player_list));
+
+    let response = CreateInteractionResponseMessage::new().add_embed(embed);
+
     command
-        .create_interaction_response(&ctx.http, |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|data| {
-                    data.embed(|e| {
-                        e.title("Online Players")
-                            .description(format!(
-                                "There are **{}** out of **{}** players online.",
-                                online, max
-                            ))
-                            .color(Colour::BLUE);
-
-                        if !player_list.is_empty() {
-                            e.footer(|f| f.text(player_list));
-                        }
-
-                        e
-                    })
-                })
-        })
+        .create_response(&ctx.http, CreateInteractionResponse::Message(response))
         .await?;
 
     sleep(Duration::new(30, 0)).await;
-    command
-        .delete_original_interaction_response(&ctx.http)
-        .await?;
+    command.delete_response(&ctx.http).await?;
 
     Ok(())
 }
@@ -108,4 +97,13 @@ fn get_player_counts(text: &str) -> (i32, i32) {
         },
         Err(_) => (-1, -1),
     }
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("command error: {0}")]
+    Discord(#[from] serenity::Error),
+
+    #[error("rcon error: {0}")]
+    Rcon(#[from] rcon::Error),
 }
