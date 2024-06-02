@@ -254,21 +254,23 @@ async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
         .filter_map(parse_channel_mention)
         .collect();
 
-    for id in channel_ids {
-        if let Some(channel) = ctx.cache.channel(id) {
-            sanitized = sanitized.replace(
-                format!("<#{}>", id).as_str(),
-                format!("#{}", channel.name()).as_str(),
-            );
+    if let Some(guild) = msg.guild(&ctx.cache) {
+        for id in channel_ids {
+            if let Some(channel) = guild.channels.get(&id) {
+                sanitized = sanitized.replace(
+                    format!("<#{}>", id).as_str(),
+                    format!("#{}", channel.name()).as_str(),
+                );
+            }
         }
-    }
 
-    for role_id in &msg.mention_roles {
-        if let Some(role) = role_id.to_role_cached(&ctx.cache) {
-            sanitized = sanitized.replace(
-                &role_id.mention().to_string(),
-                format!("@{}", role.name).as_str(),
-            );
+        for role_id in &msg.mention_roles {
+            if let Some(role) = guild.roles.get(role_id) {
+                sanitized = sanitized.replace(
+                    &role_id.mention().to_string(),
+                    format!("@{}", role.name).as_str(),
+                );
+            }
         }
     }
 

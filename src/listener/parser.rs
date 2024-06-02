@@ -395,8 +395,13 @@ impl MinecraftMessage {
                         replaced = replaced.replace(mention, &member.mention().to_string());
                     } else if let Some(role) = guild.role_by_name(name) {
                         replaced = replaced.replace(mention, &role.mention().to_string());
-                    } else if let Some(id) = guild.channel_id_from_name(ctx.clone(), name) {
-                        if let Some(channel) = ctx.cache.channel(id) {
+                    } else if let Some(id) = guild
+                        .channels
+                        .iter()
+                        .find(|&(_, v)| v.name == name)
+                        .map(|(k, _)| k)
+                    {
+                        if let Some(channel) = guild.channels.get(id) {
                             replaced = replaced.replace(mention, &channel.mention().to_string());
                         }
                     } else {
