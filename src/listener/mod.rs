@@ -222,7 +222,7 @@ async fn send_to_discord(
 
     // Set the source name to that of the bot if it's a server message
     if message.source == Source::Server {
-        message.name = ctx.cache.current_user().name.clone();
+        message.name.clone_from(&ctx.cache.current_user().name);
     }
 
     // Optionally replace mentions in the message
