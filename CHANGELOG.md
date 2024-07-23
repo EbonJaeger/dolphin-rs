@@ -12,6 +12,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 - Add config option for a list of keywords to cause death messages to be ignored
 - Add death message from Wardens
 - Use [anyhow](https://crates.io/crates/anyhow) for error handling
+- Add handling for named entity deaths
+- Add help command
 
 ## [v2.7.0] - 2022-07-27
 

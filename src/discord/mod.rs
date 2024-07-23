@@ -48,9 +48,14 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
             match command.data.name.as_str() {
+                "help" => {
+                    if let Err(e) = commands::minecraft::help(ctx, command).await {
+                        error!("Error performing 'help' command: {e}");
+                    }
+                }
                 "list" => {
                     if let Err(e) = commands::minecraft::list(ctx, command).await {
-                        error!("Error performing 'list' command: {}", e);
+                        error!("Error performing 'list' command: {e}");
                     }
                 }
                 _ => {
@@ -60,7 +65,7 @@ impl EventHandler for Handler {
                         .create_response(&ctx.http, CreateInteractionResponse::Message(response))
                         .await
                     {
-                        error!("Error sending interaction response: {}", e);
+                        error!("Error sending interaction response: {e}");
                     }
                 }
             };
@@ -147,7 +152,7 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, _ready: Ready) {
         info!("Connected to Discord");
-        let activity_data = ActivityData::playing("Type !help for command list");
+        let activity_data = ActivityData::playing("Type /help for command list");
         ctx.set_activity(Some(activity_data));
     }
 
@@ -172,7 +177,9 @@ impl EventHandler for Handler {
 
         // Setup command interactions
         let commands = vec![
-            CreateCommand::new("list").description("List all players on the Minecraft server")
+            CreateCommand::new("help").description("Show the help page"),
+            CreateCommand::new("list")
+                .description("List the current players on the Minecraft server"),
         ];
         match guild_id.set_commands(&ctx.http, commands).await {
             Ok(_) => info!("Command interactions registered"),

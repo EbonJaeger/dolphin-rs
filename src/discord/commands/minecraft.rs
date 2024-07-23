@@ -14,6 +14,32 @@ use serenity::{
 use thiserror::Error;
 use tokio::time::sleep;
 
+pub async fn help(ctx: Context, command: CommandInteraction) -> Result<(), Error> {
+    let embed = CreateEmbed::new()
+        .title("Dolphin Help")
+        .description("These are the commands for Dolphin. Commands must start with a `/`.")
+        .fields(vec![
+            ("help", "Show this help page", true),
+            (
+                "list",
+                "List the current players on the Minecraft server",
+                true,
+            ),
+        ])
+        .color(Colour::BLUE);
+
+    let response = CreateInteractionResponseMessage::new().add_embed(embed);
+
+    command
+        .create_response(&ctx.http, CreateInteractionResponse::Message(response))
+        .await?;
+
+    sleep(Duration::new(30, 0)).await;
+    command.delete_response(&ctx.http).await?;
+
+    Ok(())
+}
+
 pub async fn list(ctx: Context, command: CommandInteraction) -> Result<(), Error> {
     let config = ctx
         .data
