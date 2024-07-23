@@ -9,7 +9,7 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
-## [2.8.0] - 2024-07-23
+## [v2.8.0] - 2024-07-23
 
 - Add config option for a list of keywords to cause death messages to be ignored
 - Add death message from Wardens
