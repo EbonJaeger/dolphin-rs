@@ -53,7 +53,7 @@ fn parse_block(content: &str) -> Option<Block> {
 mod tests {
     use super::parse_blocks;
     use super::Block::{Blockquote, Paragraph};
-    use crate::markdown::Span::Text;
+    use crate::discord::markdown::Span::Text;
 
     #[test]
     fn finds_blockquotes() {

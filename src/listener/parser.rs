@@ -288,6 +288,16 @@ impl MessageParser {
             }
         }
 
+        // Named entity deaths commonly get logged, and gets matched
+        // by the death keywords. Let's try to split the message, and
+        // still take the actual death message, for added fun.
+        if line.starts_with("Named entity") {
+            let mut parts = line.split(':');
+            _ = parts.next()?;
+            let actual_line = parts.next()?.trim_start();
+            return self.try_parse_death(actual_line);
+        }
+
         let mut message: Option<MinecraftMessage> = None;
 
         for word in &self.death_keywords {
@@ -297,7 +307,7 @@ impl MessageParser {
 
             message = Some(MinecraftMessage {
                 name: String::new(),
-                content: format!(":skull: {}", line),
+                content: format!(":skull: {line}"),
                 source: Source::Server,
                 uuid: String::new(),
             });
@@ -447,9 +457,9 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::minecraft::MessageParser;
-    use crate::minecraft::MinecraftMessage;
-    use crate::minecraft::Source;
+    use super::MessageParser;
+    use super::MinecraftMessage;
+    use super::Source;
 
     #[tokio::test]
     async fn parse_vanilla_chat_line() {
@@ -706,6 +716,27 @@ mod tests {
             .await
         {
             panic!("parsed a message when the line should be ignored")
+        }
+    }
+
+    #[tokio::test]
+    async fn parser_splits_named_entity_death() {
+        // Given
+        let input = String::from("[12:32:45] [Server thread/INFO]: Named entity WanderingWinemakerEntity['Bobbie'/396211, l='ServerLevel[world]', x=-4882.04, y=70.00, z=-9015.70] died: Bobbie was slain by Zombie");
+        let mut parser = MessageParser::new_for_test();
+
+        // When
+        let message = parser
+            .parse_line(
+                &input,
+                String::from(r"^<(?P<username>\w+)> (?P<content>.+)"),
+            )
+            .await
+            .expect("A message should have been generated.");
+
+        // Then
+        if message.content != ":skull: Bobbie was slain by Zombie" {
+            panic!("parsed a named entity death message, but the contents aren't as expected: {} vs {}", input, message.content);
         }
     }
 
