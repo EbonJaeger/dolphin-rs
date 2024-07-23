@@ -14,6 +14,7 @@ use serenity::{
 use thiserror::Error;
 use tokio::time::sleep;
 
+/// Prints out an embed listing the currently-supported commands.
 pub async fn help(ctx: Context, command: CommandInteraction) -> Result<(), Error> {
     let embed = CreateEmbed::new()
         .title("Dolphin Help")
@@ -40,6 +41,11 @@ pub async fn help(ctx: Context, command: CommandInteraction) -> Result<(), Error
     Ok(())
 }
 
+/// Lists all players currently on the Minecraft server.
+///
+/// This works by calling the Minecraft `list` command via RCON,
+/// and listening for the response. The response is parsed to get
+/// the online player count, as well as their names.
 pub async fn list(ctx: Context, command: CommandInteraction) -> Result<(), Error> {
     let config = ctx
         .data
