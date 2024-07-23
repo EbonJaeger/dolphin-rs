@@ -282,7 +282,10 @@ async fn sanitize_message(ctx: &Context, msg: &Message) -> String {
     }
 
     // Escape double quotes
-    sanitized.replace("\"", "\\\"")
+    sanitized = sanitized.replace("\"", "\\\"");
+
+    // Escape escape sequences
+    sanitized.replace("\\", "\\\\")
 }
 
 /// Send a tellraw message to the Minecraft server via RCON. Content
