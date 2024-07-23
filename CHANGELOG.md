@@ -9,6 +9,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+## [2.8.0] - 2024-07-23
+
 - Add config option for a list of keywords to cause death messages to be ignored
 - Add death message from Wardens
 - Use [anyhow](https://crates.io/crates/anyhow) for error handling
@@ -140,7 +142,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.7.0...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.8.0...master
+[v2.8.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.7.0...v2.8.0
 [v2.7.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.6.0...v2.7.0
 [v2.6.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...v2.6.0
 [v2.5.2]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.1...v2.5.2
