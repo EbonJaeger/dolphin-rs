@@ -7,7 +7,6 @@ use serenity::{
     prelude::{Context, Mentionable},
 };
 use thiserror::Error;
-use tracing::error;
 
 #[derive(Clone)]
 pub struct MessageParser {
@@ -167,16 +166,21 @@ impl MessageParser {
             return None;
         }
 
+        let content = match line.strip_prefix("System chat: ") {
+            Some(content) => String::from(content),
+            None => String::from(line),
+        };
+
         let chat_regex = Regex::new(&regex).unwrap();
 
         // Check if the line is a chat message
-        if chat_regex.is_match(line).unwrap() {
-            self.try_parse_chat(chat_regex, line).await
-        } else if line.contains("joined the game") || line.contains("left the game") {
+        if chat_regex.is_match(&content).unwrap() {
+            self.try_parse_chat(chat_regex, &content).await
+        } else if content.contains("joined the game") || content.contains("left the game") {
             if line.contains("left the game") {
                 // Leave message, so remove this player from the cache
-                if let Some(end) = line.find(' ') {
-                    if let Some(name) = line.get(..end) {
+                if let Some(end) = content.find(' ') {
+                    if let Some(name) = content.get(..end) {
                         self.cached_uuids.remove(name);
                     }
                 }
@@ -185,19 +189,19 @@ impl MessageParser {
             // Join/leave message
             Some(MinecraftMessage {
                 name: String::new(),
-                content: String::from(line),
+                content,
                 source: Source::Server,
                 uuid: String::new(),
             })
-        } else if is_advancement(line) {
+        } else if is_advancement(&content) {
             // Player Advancement message
             Some(MinecraftMessage {
                 name: String::new(),
-                content: format!(":partying_face: {}", line),
+                content: format!(":partying_face: {}", content),
                 source: Source::Server,
                 uuid: String::new(),
             })
-        } else if line.starts_with("Done (") {
+        } else if content.starts_with("Done (") {
             // Server started message
             Some(MinecraftMessage {
                 name: String::new(),
@@ -205,7 +209,7 @@ impl MessageParser {
                 source: Source::Server,
                 uuid: String::new(),
             })
-        } else if line.starts_with("Stopping the server") {
+        } else if content.starts_with("Stopping the server") {
             // Server stopping message
             Some(MinecraftMessage {
                 name: String::new(),
@@ -214,7 +218,7 @@ impl MessageParser {
                 uuid: String::new(),
             })
         } else {
-            self.try_parse_death(line)
+            self.try_parse_death(&content)
         }
     }
 
