@@ -1,6 +1,6 @@
 [package]
 name = "dolphin-rs"
-version = "2.8.0"
+version = "2.8.1"
 authors = ["Evan Maddock <maddock.evan@vivaldi.net>"]
 license = "Apache-2.0"
 description = "Connects your Minecraft server chat to Discord"

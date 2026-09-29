@@ -9,6 +9,9 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 ## [Unreleased]
 
+## [v2.8.1] - 2026-09-29
+
+- Fix log parsing on Minecraft 26.3
 - Update dependencies
 
 ## [v2.8.0] - 2024-07-23
@@ -144,7 +147,8 @@ Items marked with (Serenity) are improvements due to using an updated version of
 
 - Improve experience when a user sends an attachment in Discord
 
-[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.8.0...master
+[unreleased]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.8.1...main
+[v2.8.1]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.8.0...v2.8.1
 [v2.8.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.7.0...v2.8.0
 [v2.7.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.6.0...v2.7.0
 [v2.6.0]: https://github.com/EbonJaeger/dolphin-rs/compare/v2.5.2...v2.6.0
